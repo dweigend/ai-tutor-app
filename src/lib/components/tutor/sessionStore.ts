@@ -1,5 +1,7 @@
 import type {
 	ApiMode,
+	TutorMoveKind,
+	LearningEvidence,
 	TaskRef,
 	TutorTurnRequest,
 	TutorApiClient,
@@ -89,31 +91,87 @@ export function requiresConsentRestart(
 	return mode === 'http' && !!request.agentContext !== shareWithApi;
 }
 
-/** A confirmed tutor turn can precede the exercise or happen inside its companion sheet. */
+type HelpLevel = LearningEvidence['helpLevel'];
+
+export function helpForMove(move: TutorMoveKind): HelpLevel {
+	switch (move) {
+		case 'kontrastfall':
+			return 1;
+		case 'gestufter_hinweis':
+			return 2;
+		case 'beispiel_zeigen':
+			return 3;
+		case 'kurz_erklaeren':
+			return 4;
+		default:
+			return 0;
+	}
+}
+
+class AttemptBinding {
+	private readonly sessions = new Map<string, HelpLevel>();
+
+	record(sessionId: string, level: HelpLevel) {
+		const previous = this.sessions.get(sessionId);
+		if (previous === undefined || previous < level) this.sessions.set(sessionId, level);
+	}
+
+	get sessionId() {
+		let selected: string | undefined;
+		let highest = -1;
+		// Map iteration follows first observation. On ties the later session wins.
+		for (const [id, level] of this.sessions) {
+			if (level >= highest) {
+				selected = id;
+				highest = level;
+			}
+		}
+		return selected;
+	}
+}
+
 export class ExerciseSessions {
-	private active = new Map<string, string>();
-	private attempts = new Map<string, { sessionId?: string }>();
+	private active = new Map<string, { id: string; level: HelpLevel }>();
+	private attempts = new Map<string, AttemptBinding>();
 
 	private key(task: TaskRef) {
 		return JSON.stringify([task.courseId, task.courseVersion, task.taskId]);
 	}
 
 	start(task: TaskRef, sessionId: string) {
-		const key = this.key(task);
-		this.active.set(key, sessionId);
-		const attempt = this.attempts.get(key);
-		if (attempt) attempt.sessionId ??= sessionId;
+		this.recordHelp(task, sessionId, 0);
 	}
+
+	recordHelp(task: TaskRef, sessionId: string, level: HelpLevel) {
+		const key = this.key(task);
+		const active = this.active.get(key);
+		if (active?.id !== sessionId || active.level < level)
+			this.active.set(key, { id: sessionId, level });
+		this.attempts.get(key)?.record(sessionId, level);
+	}
+
 	close(task: TaskRef, sessionId: string) {
 		const key = this.key(task);
-		if (this.active.get(key) === sessionId) this.active.delete(key);
+		if (this.active.get(key)?.id === sessionId) this.active.delete(key);
 	}
+
 	beginAttempt(task: TaskRef) {
 		const key = this.key(task);
-		const attempt = { sessionId: this.active.get(key) };
-		this.attempts.set(key, attempt);
-		return attempt;
+		let attempt = this.attempts.get(key);
+		if (!attempt) {
+			attempt = new AttemptBinding();
+			const active = this.active.get(key);
+			if (active) attempt.record(active.id, active.level);
+			this.attempts.set(key, attempt);
+		}
+		const binding = attempt;
+		return {
+			get sessionId() {
+				return binding.sessionId;
+			}
+		};
 	}
+
 	reset(task: TaskRef) {
 		const key = this.key(task);
 		this.attempts.delete(key);

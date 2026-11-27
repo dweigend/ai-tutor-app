@@ -574,9 +574,7 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		],
 		feedback:
 			'Noch nicht. Schau, an wie vielen Eingängen von L das d steht – und was += mit jedem Beitrag macht.',
-		evidence: [
-			{ ...evidence('lz-rechengraph-gradienten', 'anwendung'), evidenceScope: 'teilaspekt' }
-		]
+		evidence: [{ ...evidence('lz-rechengraph-gradienten', 'abruf'), evidenceScope: 'teilaspekt' }]
 	},
 	{
 		task: aiBackwardTask,
@@ -671,7 +669,7 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		feedback:
 			'Geh vom Endpreis rückwärts: Wie stark wirkt E · (1 + s) auf P, und wie stark wirkt s darauf?',
 		evidence: [
-			{ ...evidence('lz-rechengraph-gradienten', 'transfer'), evidenceScope: 'teilaspekt' }
+			{ ...evidence('lz-rechengraph-gradienten', 'vorhersage'), evidenceScope: 'teilaspekt' }
 		]
 	},
 	{

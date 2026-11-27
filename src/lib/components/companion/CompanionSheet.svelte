@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { helpForMove } from '../tutor/sessionStore';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { getTutorAppContext } from '$lib/api/context.svelte';
@@ -100,7 +101,7 @@
 				if (turn.signal.aborted) return;
 				const task = request.task;
 				if (task) {
-					sessions.start(task, reply.session.id);
+					sessions.recordHelp(task, reply.session.id, helpForMove(reply.message?.move ?? 'warten'));
 					closeSession = () => sessions.close(task, reply.session.id);
 				}
 				revision = reply.session.revision;

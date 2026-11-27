@@ -21,6 +21,7 @@ const {
 	confidenceModeForHeight,
 	digitsComplete,
 	attemptResult,
+	countsAsTaskCompletion,
 	emptyAnswer,
 	exerciseIcon,
 	exerciseScreen,
@@ -323,4 +324,51 @@ test('the exercise retains its tutor session after expiry until the next attempt
 	sessions.reset(task);
 	await submit(sessions.beginAttempt(task));
 	assert.deepEqual(sent, ['sess-1', undefined]);
+});
+
+test('partial evidence confirms a step while keeping the task open', () => {
+	const full = {
+		kind: 'exercise',
+		requestId: 'r',
+		attemptId: 'a',
+		feedback: 'OK',
+		result: 'korrekt',
+		evidence: []
+	} as const;
+	const response = { ...full, evidence: [] };
+	assert.equal(countsAsTaskCompletion(response), true);
+	assert.equal(countsAsTaskCompletion({ ...response, evidenceScope: 'vollstaendig' }), true);
+	assert.equal(countsAsTaskCompletion({ ...response, evidenceScope: 'teilaspekt' }), false);
+	const item = {
+		kind: 'abruf',
+		taskId: 't',
+		id: 'e',
+		learningGoalId: 'g',
+		helpLevel: 0,
+		recordedAt: '2026-11-28T08:00:00Z',
+		evidenceScope: 'teilaspekt'
+	} as const;
+	assert.equal(countsAsTaskCompletion({ ...response, evidence: [item] }), false);
+});
+
+test('an attempt retains the highest help across closed and newer sessions', async () => {
+	const { ExerciseSessions, helpForMove } = await import('../tutor/sessionStore.js');
+	const task = exercises[0].task;
+	for (const [first, second, expected] of [
+		['nachhaken', 'kontrastfall', 'B'],
+		['kontrastfall', 'nachhaken', 'A'],
+		['kontrastfall', 'kontrastfall', 'B']
+	] as const) {
+		const sessions = new ExerciseSessions();
+		const attempt = sessions.beginAttempt(task);
+		sessions.start(task, 'A');
+		sessions.recordHelp(task, 'A', helpForMove(first));
+		sessions.close(task, 'A');
+		sessions.start(task, 'B');
+		sessions.recordHelp(task, 'B', helpForMove(second));
+		assert.equal(attempt.sessionId, expected);
+		assert.equal(sessions.beginAttempt(task).sessionId, expected);
+		sessions.reset(task);
+		assert.equal(sessions.beginAttempt(task).sessionId, undefined);
+	}
 });

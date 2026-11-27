@@ -4,7 +4,6 @@
 	import { getTutorAppContext } from '$lib/api/context.svelte';
 	import {
 		ApiError,
-		countsAsMastery,
 		type ApiProblem,
 		type ExerciseAttemptRequest,
 		type ExerciseAttemptResponse
@@ -29,6 +28,7 @@
 	} from '$lib/modules';
 	import {
 		attemptResult,
+		countsAsTaskCompletion,
 		checkLines,
 		choiceAnswerText,
 		choiceVoice,
@@ -233,7 +233,6 @@
 		// Switching backends also starts a fresh binding.
 		const sessions = tutorApp.exerciseSessions;
 		attemptSession = sessions.beginAttempt(task);
-		return () => sessions.reset(task);
 	});
 	let controller: AbortController | undefined;
 	$effect(() => () => controller?.abort());
@@ -251,6 +250,7 @@
 		controller?.abort();
 		controller = new AbortController();
 		const payload = {
+			...(step.id === 'abruf' && { stepId: 'abruf' as const }),
 			sessionId: attemptSession.sessionId,
 			answer,
 			confidence: draft.confidence ?? undefined
@@ -264,7 +264,7 @@
 			);
 			outcome = { kind: 'response', response: result };
 			// Only `korrekt` is mastery; a received sketch (fourth state) stays open in the list.
-			if (countsAsMastery(attemptResult(result))) {
+			if (countsAsTaskCompletion(result)) {
 				const { courseId, courseVersion, taskId } = task;
 				tutorApp.recordPracticeProgress(`exercise:${courseId}@${courseVersion}:${taskId}`);
 				markDone(taskId);
@@ -345,6 +345,7 @@
 			resetAnswer();
 			return;
 		}
+		tutorApp.exerciseSessions.reset(task);
 		void goto(listHref);
 	}
 
@@ -419,6 +420,12 @@
 	let because = $derived.by(() => {
 		if (outcome?.kind === 'problem') return outcome.problem.message;
 		if (outcome?.kind !== 'response') return '';
+		if (
+			attemptResult(outcome.response) === 'korrekt' &&
+			!countsAsTaskCompletion(outcome.response)
+		) {
+			return 'Zahl stimmt. ' + outcome.response.feedback;
+		}
 		if (stage.correctFeedback && attemptResult(outcome.response) === 'korrekt') {
 			return stage.correctFeedback;
 		}

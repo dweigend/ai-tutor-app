@@ -1192,6 +1192,15 @@ test('Mock: offene Abrufaufgabe unterscheidet Treffer, Alternativweg, Begründun
 			answer: { kind: 'text', text }
 		});
 
+	const explanation = await client.evaluateExercise({
+		kind: 'exercise',
+		requestId: 'course-step',
+		task: exercise.task,
+		stepId: 'kursaufgabe',
+		answer: { kind: 'text', text: '8' }
+	});
+	assert.equal(explanation.result, 'nicht_pruefbar_oder_alternativweg');
+	assert.deepEqual(explanation.evidence, []);
 	for (const text of ['08', '8,0', '8']) {
 		const correct = await attempt('open-' + text, text);
 		assert.equal(correct.result, 'korrekt', text);
@@ -1373,7 +1382,12 @@ test('HTTP prüft Aufgabe und Kurs der bestätigten Sitzung', async () => {
 });
 
 test('HTTP contract for numeric substeps in both live exercises', async () => {
-	const client = new HttpTutorClient(origin);
+	const client = new HttpTutorClient(origin, async (url, init) => {
+		const body = JSON.parse(String(init?.body));
+		if (body.task.taskId === 'a-bp-addieren-erklaeren') assert.equal(body.stepId, 'abruf');
+		else assert.equal(Object.hasOwn(body, 'stepId'), false);
+		return fetch(url, init);
+	});
 	for (const [taskId, text, level] of [
 		['a-bp-addieren-erklaeren', '8', 'geprueft_korrekt'],
 		['a-bp-addieren-erklaeren', '4', 'nachgewiesener_fehler'],
@@ -1388,11 +1402,19 @@ test('HTTP contract for numeric substeps in both live exercises', async () => {
 		const reply = await client.evaluateExercise({
 			kind: 'exercise',
 			requestId: 'numeric-' + text,
+			stepId: taskId === 'a-bp-addieren-erklaeren' ? 'abruf' : undefined,
 			task: exercise.task,
 			answer: { kind: 'text', text }
 		});
 		assert.equal(reply.evidenceLevel, level, text);
-		if (level === 'geprueft_korrekt') assert.equal(reply.evidence[0]?.evidenceScope, 'teilaspekt');
+		assert.equal(reply.evidenceScope, 'teilaspekt');
+		if (level === 'geprueft_korrekt') {
+			assert.equal(reply.evidence[0]?.evidenceScope, 'teilaspekt');
+			assert.equal(
+				reply.evidence[0]?.kind,
+				taskId === 'a-bp-addieren-erklaeren' ? 'abruf' : 'vorhersage'
+			);
+		}
 	}
 });
 
@@ -1451,5 +1473,58 @@ test('HTTP mirror preserves a multi-goal exercise diagnostic without linked evid
 			resolveConceptStatus({ ...concept, learningGoalId: 'lz-b' }, observations, 'http'),
 			'noch_zu_wenig_gesehen'
 		);
+	}
+});
+
+test('mixed activity mirror accepts nullable diagnostics and preserves checked evidence', async () => {
+	const practice = {
+		kind: 'exercise',
+		itemId: 'task',
+		recordedAt: '2026-11-27T08:00:00Z',
+		learningGoalId: null,
+		helpLevel: null,
+		evidenceScope: null,
+		evidenceLevel: null
+	};
+	const recentPractice = [
+		{ ...practice, id: 'a', result: 'korrekt' },
+		{ ...practice, id: 'b', result: 'teilweise', evidenceLevel: 'teilwissen' },
+		{ ...practice, id: 'c', result: 'nicht_pruefbar_oder_alternativweg' }
+	];
+	const evidence = ['goal-1', 'goal-2'].map((learningGoalId, i) => ({
+		id: 'a:' + i,
+		taskId: 'task',
+		kind: 'abruf',
+		learningGoalId,
+		helpLevel: 0,
+		recordedAt: practice.recordedAt,
+		attemptId: null,
+		evidenceScope: null,
+		evidenceLevel: null,
+		result: null
+	}));
+	const client = new HttpTutorClient('/', async () =>
+		Response.json({ course: demoCourse, recentPractice, evidence })
+	);
+	const mirror = await client.getActivityMirror(demoCourse);
+	assert.deepEqual(
+		mirror.recentPractice.map((x) => x.result),
+		recentPractice.map((x) => x.result)
+	);
+	assert.deepEqual(
+		mirror.evidence.map((x) => x.id),
+		evidence.map((x) => x.id)
+	);
+	for (const item of mirror.recentPractice) {
+		assert.equal(item.learningGoalId, undefined);
+		assert.equal(item.helpLevel, undefined);
+		assert.equal(item.evidenceScope, undefined);
+	}
+	assert.equal(mirror.recentPractice[0].evidenceLevel, undefined);
+	for (const item of mirror.evidence) {
+		assert.equal(item.result, undefined);
+		assert.equal(item.attemptId, undefined);
+		assert.equal(item.evidenceLevel, undefined);
+		assert.equal(item.evidenceScope, undefined);
 	}
 });

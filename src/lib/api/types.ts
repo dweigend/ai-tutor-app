@@ -66,7 +66,7 @@ export function effectiveResult(result: CheckResult, evidenceLevel?: EvidenceLev
 export function countsAsMastery(result: CheckResult): boolean {
 	return result === 'korrekt';
 }
-export type EvidenceKind = 'vorhersage' | 'anwendung' | 'fehlerfund' | 'transfer';
+export type EvidenceKind = 'abruf' | 'vorhersage' | 'anwendung' | 'fehlerfund' | 'transfer';
 
 export interface WhiteboardSnapshot {
 	boardId: string;
@@ -187,6 +187,7 @@ export interface TutorialCheckRequest {
 }
 
 export interface ExerciseAttemptRequest {
+	stepId?: 'abruf' | 'kursaufgabe';
 	sessionId?: string;
 	kind: 'exercise';
 	requestId: string;
@@ -249,6 +250,7 @@ export function evidenceAttemptId(
 }
 
 export interface ExerciseAttemptResponse {
+	evidenceScope?: EvidenceScope;
 	kind: 'exercise';
 	requestId: string;
 	attemptId: string;

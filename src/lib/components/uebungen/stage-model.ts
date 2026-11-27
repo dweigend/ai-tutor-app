@@ -5,7 +5,8 @@ import type {
 	ApiProblem,
 	CheckResult,
 	EvidenceLevel,
-	ExerciseAttemptRequest
+	ExerciseAttemptRequest,
+	ExerciseAttemptResponse
 } from '../../api/types.js';
 import type {
 	EditorialExercise,
@@ -297,6 +298,17 @@ export function attemptResult(response: {
 	evidenceLevel?: EvidenceLevel;
 }): CheckResult {
 	return effectiveResult(response.result, response.evidenceLevel);
+}
+
+export function countsAsTaskCompletion(response: ExerciseAttemptResponse): boolean {
+	return (
+		attemptResult(response) === 'korrekt' &&
+		response.evidenceScope !== 'teilaspekt' &&
+		!(
+			response.evidence.length > 0 &&
+			response.evidence.every((item) => item.evidenceScope === 'teilaspekt')
+		)
+	);
 }
 
 /** The HTTP backend serves only the AI course and locks its Modul-2 test split (AP6). */

@@ -796,7 +796,15 @@ export class MockTutorClient implements TutorApiClient {
 				optionId && optionFeedback && Object.hasOwn(optionFeedback, optionId)
 					? optionFeedback[optionId]
 					: fixture.feedback;
-			const outcome = checkOutcome(answer, fixture.rules, feedback, true);
+			// The retrieval fixture checks the number only. The full explanation needs another grader.
+			const fullExplanation =
+				request.task.taskId === 'a-bp-addieren-erklaeren' && request.stepId === 'kursaufgabe';
+			const outcome = fullExplanation
+				? {
+						result: 'nicht_pruefbar_oder_alternativweg' as const,
+						feedback: 'Für die gesamte Kursaufgabe gehört eine Erklärung beider Pfade dazu.'
+					}
+				: checkOutcome(answer, fixture.rules, feedback, true);
 			const recordedAt = this.now().toISOString();
 			const attemptId = `${request.requestId}:attempt`;
 			const levelByResult = {
@@ -806,7 +814,8 @@ export class MockTutorClient implements TutorApiClient {
 				nicht_pruefbar_oder_alternativweg: 'nicht_pruefbar_oder_alternativweg'
 			} as const satisfies Record<CheckResult, EvidenceLevel>;
 			const evidenceLevel = levelByResult[outcome.result];
-			const goal = fixture.evidence.length === 1 ? fixture.evidence[0] : undefined;
+			const goal =
+				!fullExplanation && fixture.evidence.length === 1 ? fixture.evidence[0] : undefined;
 			const evidence = countsAsMastery(outcome.result)
 				? fixture.evidence.map((item, index) => ({
 						...item,
@@ -835,6 +844,7 @@ export class MockTutorClient implements TutorApiClient {
 				kind: 'exercise',
 				requestId: request.requestId,
 				attemptId,
+				...(goal?.evidenceScope && { evidenceScope: goal.evidenceScope }),
 				...outcome,
 				evidenceLevel,
 				evidence

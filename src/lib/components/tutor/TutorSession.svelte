@@ -46,6 +46,7 @@
 	import { advance, draftInput, startCursor, type DraftMode, type ScriptCursor } from './script';
 	import {
 		acceptsTurn,
+		helpForMove,
 		requiresConsentRestart,
 		clearSession,
 		loadSession,
@@ -421,7 +422,12 @@
 					};
 		entries.push(confirmed, reply);
 		artifact = response.artifact ?? null;
-		if (request.task) tutorApp.exerciseSessions.start(request.task, response.session.id);
+		if (request.task)
+			tutorApp.exerciseSessions.recordHelp(
+				request.task,
+				response.session.id,
+				helpForMove(response.message?.move ?? 'warten')
+			);
 		revision = response.session.revision;
 		sessionState = response.session.state;
 		cursor = next.cursor;

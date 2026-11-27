@@ -59,7 +59,7 @@ const REPLY_MOVES = [
 	'pause_anbieten',
 	'abschliessen'
 ] as const;
-const EVIDENCE_KINDS = ['vorhersage', 'anwendung', 'fehlerfund', 'transfer'] as const;
+const EVIDENCE_KINDS = ['abruf', 'vorhersage', 'anwendung', 'fehlerfund', 'transfer'] as const;
 
 function isOneOf<T extends string>(value: unknown, options: readonly T[]): value is T {
 	return options.some((option) => value === option);
@@ -91,11 +91,20 @@ function isUtcDate(value: unknown): value is string {
 	);
 }
 
+// JSON null and an omitted optional field have the same meaning on the wire.
+function normalizeOptionalFields(value: unknown, fields: readonly string[]) {
+	if (!isRecord(value)) return;
+	for (const field of fields) {
+		if (value[field] === null) delete value[field];
+	}
+}
+
 function isOptionalScope(value: unknown): boolean {
 	return value === undefined || value === 'vollstaendig' || value === 'teilaspekt';
 }
 
 function isEvidence(value: unknown): value is LearningEvidence {
+	normalizeOptionalFields(value, ['attemptId', 'result', 'evidenceLevel', 'evidenceScope']);
 	return (
 		isRecord(value) &&
 		isId(value.id) &&
@@ -124,6 +133,7 @@ function withEffectiveResult<T extends { result: CheckResult; evidenceLevel?: Ev
 }
 
 function isPractice(value: unknown): value is ActivityMirrorSnapshot['recentPractice'][number] {
+	normalizeOptionalFields(value, ['learningGoalId', 'helpLevel', 'evidenceScope', 'evidenceLevel']);
 	return (
 		isRecord(value) &&
 		(value.kind === 'tutorial' || value.kind === 'exercise') &&
@@ -148,6 +158,7 @@ function isMirror(value: unknown): value is ActivityMirrorSnapshot {
 }
 
 function isTutorialCheck(value: unknown): value is TutorialCheckResponse {
+	normalizeOptionalFields(value, ['evidenceLevel']);
 	return (
 		isRecord(value) &&
 		value.kind === 'tutorial' &&
@@ -159,9 +170,11 @@ function isTutorialCheck(value: unknown): value is TutorialCheckResponse {
 }
 
 function isExerciseAttempt(value: unknown): value is ExerciseAttemptResponse {
+	normalizeOptionalFields(value, ['evidenceLevel', 'evidenceScope']);
 	return (
 		isRecord(value) &&
 		value.kind === 'exercise' &&
+		isOptionalScope(value.evidenceScope) &&
 		isId(value.requestId) &&
 		isId(value.attemptId) &&
 		isOneOf(value.result, CHECK_RESULTS) &&
