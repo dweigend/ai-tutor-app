@@ -4,8 +4,8 @@
 	interface Props {
 		/** Link to the area overview. */
 		href: string;
-		/** Two-digit area number, a real identifier (DESIGN.md §6.6). */
-		index: string;
+		/** Optional identifier shown before the title. */
+		index?: string;
 		/** Render as the screen's h1; turn off when the screen has its own main heading. */
 		heading?: boolean;
 		children: Snippet;
@@ -16,8 +16,10 @@
 
 {#snippet mark()}
 	<a class="m-hit m-label shell-mark" {href}>
-		<span>{index}</span>
-		<span aria-hidden="true">/</span>
+		{#if index}
+			<span>{index}</span>
+			<span aria-hidden="true">/</span>
+		{/if}
 		<span>{@render children()}</span>
 	</a>
 {/snippet}

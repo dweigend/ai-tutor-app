@@ -12,6 +12,9 @@ const rules = {
 };
 const required = [
 	'SurfaceShell',
+	'ProgressDots',
+	'StatusSignal',
+	'TypeBadge',
 	'InteractionStage',
 	'Raster',
 	'Fader',
@@ -166,5 +169,5 @@ if (failures.length) {
 	console.error(failures.join('\n'));
 	process.exitCode = 1;
 } else {
-	console.log('OK: Modulgrenzen, 9 Primitive, 2 Dienste und das Icon-Set geprüft.');
+	console.log('OK: Modulgrenzen, Primitive, Indikatoren, Dienste und Icon-Set geprüft.');
 }

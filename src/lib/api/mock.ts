@@ -12,6 +12,7 @@ import type { AgentContextSnapshot } from '../memory/types.js';
 import { defaultFixtures, demoTask } from './defaultFixtures.js';
 import {
 	ApiError,
+	countsAsMastery,
 	checkAbort,
 	isId,
 	isRecord,
@@ -113,7 +114,7 @@ function notFound(message: string): ApiError {
 	return new ApiError({ code: 'not_found', message, retryable: false }, 404);
 }
 
-function unavailable(message = 'Für diese Abgabe gibt es im Demo-Modus keine Prüfung.'): ApiError {
+function unavailable(message = 'Für diese Abgabe gibt es keine automatische Prüfung.'): ApiError {
 	return new ApiError(
 		{
 			code: 'unavailable',
@@ -148,9 +149,34 @@ function matchesTrigger(input: TutorInput, trigger: DiagnosisTrigger): boolean {
 	return trigger.phrases.every((phrase) => text.includes(normalizeText(phrase)));
 }
 
+/**
+ * A text that is one plain number (optionally with unit) as value and unit: `08`, `8,0`, `8.0` and
+ * `+8` are all 8, `-0` is 0. Anything else (a calculation, a sentence) is undefined.
+ */
+function numberOf(text: string): { value: number; unit: string } | undefined {
+	const match = /^([-−+]?)(\d+)(?:[.,](\d+))?\s*(€|%)?$/.exec(normalizeText(text));
+	if (!match) return undefined;
+	const [, sign, whole, fraction = '0', unit = ''] = match;
+	const value = Number(`${whole}.${fraction}`) * (sign === '-' || sign === '−' ? -1 : 1);
+	return { value: value === 0 ? 0 : value, unit };
+}
+
+/** Text answers match as written, or as the same number when both sides are one number. */
+function sameText(answer: string, expected: string): boolean {
+	if (normalizeText(answer) === normalizeText(expected)) return true;
+	const given = numberOf(answer);
+	const wanted = numberOf(expected);
+	return (
+		given !== undefined &&
+		wanted !== undefined &&
+		given.value === wanted.value &&
+		(given.unit === '' || given.unit === wanted.unit)
+	);
+}
+
 function matchesAnswer(answer: CheckAnswer, expected: CheckAnswer): boolean {
 	if (answer.kind === 'text' && expected.kind === 'text') {
-		return normalizeText(answer.text) === normalizeText(expected.text);
+		return sameText(answer.text, expected.text);
 	}
 	if (answer.kind === 'choice' && expected.kind === 'choice') {
 		return (
@@ -298,7 +324,7 @@ function chooseMove(
 		return {
 			reply: {
 				move: 'nachhaken',
-				text: 'Was wäre jetzt dein nächster Schritt bei deiner Aufgabe?'
+				text: 'Alles klar – was ist jetzt dein nächster Schritt bei deiner Aufgabe?'
 			},
 			nextStepId: step.id,
 			needsReturn: false
@@ -310,17 +336,34 @@ function chooseMove(
 	return { reply, nextStepId, needsReturn: false };
 }
 
+/** Follow-up for an open text the rules cannot judge: it asks, it never reveals the solution. */
+export const OPEN_TEXT_FOLLOW_UP =
+	'Guter Ansatz – magst du kurz nur das Endergebnis angeben oder deinen Rechenweg selbst prüfen?';
+
+/** A single number (optionally with unit), so a mismatch is clear evidence of an error. */
+function isSingleValue(text: string): boolean {
+	return numberOf(text) !== undefined;
+}
+
 function checkOutcome<T extends CheckAnswer>(
 	answer: T,
 	rules: readonly { accepted: T; result: 'korrekt' | 'teilweise'; feedback: string }[],
-	feedback: string
+	feedback: string,
+	openText = false
 ): { result: CheckResult; feedback: string } {
 	const relevant = rules.filter((rule) => rule.accepted.kind === answer.kind);
-	if (!relevant.length) throw unavailable(feedback);
 	const match = relevant.find((rule) => matchesAnswer(answer, rule.accepted));
-	return match
-		? { result: match.result, feedback: match.feedback }
-		: { result: 'falsch', feedback };
+	if (match) return { result: match.result, feedback: match.feedback };
+	// A sketch is a free way to an answer: without an exact rule it is received, not judged. It is
+	// neither partial nor wrong and never mastery (fourth evidence state).
+	if (answer.kind === 'whiteboard')
+		return { result: 'nicht_pruefbar_oder_alternativweg', feedback };
+	if (!relevant.length) throw unavailable(feedback);
+	// An open exercise text like "4 + 4 = 8" or a free reasoning is an alternative way, not an
+	// error. Only a single wrong value is a demonstrable mistake; it gets a hint, not the solution.
+	if (openText && answer.kind === 'text' && !isSingleValue(answer.text))
+		return { result: 'nicht_pruefbar_oder_alternativweg', feedback: OPEN_TEXT_FOLLOW_UP };
+	return { result: 'falsch', feedback };
 }
 
 interface PendingTurn {
@@ -479,7 +522,7 @@ export class MockTutorClient implements TutorApiClient {
 		if (!scenario) {
 			const exercise = exerciseForTask(request.task.taskId);
 			if (!exercise || !sameTask(exercise.task, request.task))
-				throw notFound('Für diese Aufgabe gibt es kein Demo-Szenario.');
+				throw notFound('Zu dieser Aufgabe gibt es hier kein Gespräch.');
 			const context = applicableContext(request);
 			const recall =
 				request.input.kind === 'message' &&
@@ -673,23 +716,22 @@ export class MockTutorClient implements TutorApiClient {
 					item.tutorialId === request.tutorialId &&
 					item.checkId === request.checkId
 			);
-			if (!fixture) throw notFound('Dieser Tutorial-Check ist im Demo-Modus unbekannt.');
+			if (!fixture) throw notFound('Dieser Check wurde nicht gefunden.');
 			const outcome = checkOutcome(request.answer, fixture.rules, fixture.feedback);
 			const recordedAt = this.now().toISOString();
-			const evidence =
-				outcome.result === 'korrekt'
-					? [
-							{
-								id: `${request.requestId}:1`,
-								attemptId: request.requestId,
-								taskId: request.tutorialId,
-								learningGoalId: fixture.learningGoalId ?? request.checkId,
-								kind: 'vorhersage' as const,
-								helpLevel: 0 as const,
-								recordedAt
-							}
-						]
-					: [];
+			const evidence = countsAsMastery(outcome.result)
+				? [
+						{
+							id: `${request.requestId}:1`,
+							attemptId: request.requestId,
+							taskId: request.tutorialId,
+							learningGoalId: fixture.learningGoalId ?? request.checkId,
+							kind: 'vorhersage' as const,
+							helpLevel: 0 as const,
+							recordedAt
+						}
+					]
+				: [];
 			this.recordPractice(
 				request.course,
 				{
@@ -717,7 +759,7 @@ export class MockTutorClient implements TutorApiClient {
 			validateConfidence(request.confidence);
 			validateAnswer(request.answer);
 			const fixture = this.fixtures.exercises.find((item) => sameTask(item.task, request.task));
-			if (!fixture) throw notFound('Diese Übung ist im Demo-Modus unbekannt.');
+			if (!fixture) throw notFound('Diese Übung wurde nicht gefunden.');
 			const { answer } = request;
 			const optionId =
 				answer.kind === 'choice' && answer.optionIds.length === 1 ? answer.optionIds[0] : undefined;
@@ -726,19 +768,18 @@ export class MockTutorClient implements TutorApiClient {
 				optionId && optionFeedback && Object.hasOwn(optionFeedback, optionId)
 					? optionFeedback[optionId]
 					: fixture.feedback;
-			const outcome = checkOutcome(answer, fixture.rules, feedback);
+			const outcome = checkOutcome(answer, fixture.rules, feedback, true);
 			const recordedAt = this.now().toISOString();
 			const attemptId = `${request.requestId}:attempt`;
-			const evidence =
-				outcome.result === 'korrekt'
-					? fixture.evidence.map((item, index) => ({
-							...item,
-							id: `${attemptId}:${index + 1}`,
-							attemptId,
-							taskId: request.task.taskId,
-							recordedAt
-						}))
-					: [];
+			const evidence = countsAsMastery(outcome.result)
+				? fixture.evidence.map((item, index) => ({
+						...item,
+						id: `${attemptId}:${index + 1}`,
+						attemptId,
+						taskId: request.task.taskId,
+						recordedAt
+					}))
+				: [];
 			this.recordPractice(
 				request.task,
 				{

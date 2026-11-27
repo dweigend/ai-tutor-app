@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { getTutorAppContext } from '$lib/api/context.svelte';
-	import { buildContextualHelp } from '$lib/memory';
+	import { buildContextualHelp, INDEPENDENT_PROBE_HELP } from '$lib/memory';
 	import { latestSavedNote } from '$lib/memory/snapshot';
 	import { learningMemory, screenContext } from '$lib/memory/runtime.svelte';
-	import { Icon } from '$lib/modules';
-	import DuckStage from '../duck/DuckStage.svelte';
+	import { BottomBar, IconButton } from '$lib/modules';
 	import Dictation from '../tutor/Dictation.svelte';
 	import MemoryDrawer from './MemoryDrawer.svelte';
 	import { makeRequest, contextLine } from './companion-logic';
@@ -31,8 +31,9 @@
 	let revision = 0;
 	let controller = $state.raw<AbortController>();
 	let tail = $state<HTMLElement>();
+	let field = $state<HTMLInputElement>();
 	onMount(() => {
-		dialog.showModal();
+		dialog.show();
 		function escape(event: KeyboardEvent) {
 			if (event.key !== 'Escape') return;
 			event.stopPropagation();
@@ -67,7 +68,8 @@
 		learningMemory.addNote(mode, text);
 		input = '';
 		if (mode === 'note') {
-			status = 'Gedankennotiz gespeichert.';
+			mode = 'question';
+			status = 'Gemerkt.';
 			return;
 		}
 		status = '';
@@ -78,14 +80,12 @@
 			let answer = buildContextualHelp(before);
 			if (/notiz|gemerkt|erinner|gespeichert/i.test(text)) {
 				answer = note
-					? `Du hast festgehalten: „${note.text}“. Wie würdest du den Gedanken heute ergänzen?`
-					: 'Zu diesem Inhalt hattest du bisher nichts gespeichert.';
+					? `Du hattest dir notiert: „${note.text}“. Was denkst du jetzt darüber?`
+					: 'Hier hast du dir noch nichts notiert.';
 			} else if (/lesezeit|wie lange/i.test(text)) {
 				answer = contextLine(before);
-			} else if (!before.visibleScreen.termId && !before.visibleScreen.formulaId) {
-				answer = `Für „${text}“ gibt es hier keine eigene redaktionelle Antwort. ${answer}`;
 			}
-			messages.push({ role: 'Redaktionelle Hilfe', text: answer });
+			messages.push({ role: 'Tutor', text: answer });
 		} else {
 			const turn = new AbortController();
 			controller = turn;
@@ -94,13 +94,13 @@
 				if (turn.signal.aborted) return;
 				revision = reply.session.revision;
 				messages.push({
-					role: 'Tutor-Ente',
-					text: reply.message?.text ?? 'Ich warte auf deinen nächsten Schritt.'
+					role: 'Tutor',
+					text: reply.message?.text ?? 'Alles klar – was ist dein nächster Schritt?'
 				});
 			} catch (error) {
 				if (!turn.signal.aborted)
 					status =
-						error instanceof Error ? error.message : 'Die Antwort konnte nicht geladen werden.';
+						error instanceof Error ? error.message : 'Gerade keine Antwort – probier’s nochmal.';
 			} finally {
 				if (controller === turn) controller = undefined;
 			}
@@ -110,146 +110,131 @@
 	}
 </script>
 
-<dialog bind:this={dialog} aria-labelledby="companion-title" {onclose}>
+<dialog bind:this={dialog} aria-label="Tutor" {onclose}>
+	<!-- Icons only: chat or memory, the fullscreen tutor (the keyboard way; the pointer pulls the
+	     corner duck up) and close. -->
 	<header>
-		<h2 id="companion-title">Tutor-Ente</h2>
-		<button class="close" aria-label="Tutor-Ente schließen" onclick={() => dialog.close()}>
-			<Icon name="close" />
-		</button>
+		{#if !snapshot.visibleScreen.isIndependentProbe}<IconButton
+				icon="book"
+				label={panel === 'chat' ? 'Notizen und Verlauf' : 'Zurück zum Chat'}
+				active={panel === 'memory'}
+				onclick={changePanel}
+			/>{/if}
+		<IconButton icon="external" label="Tutor im Vollbild" href={resolve('/tutor')} />
+		<IconButton icon="close" label="Schließen" onclick={() => dialog.close()} />
 	</header>
-	<div class="line">Sieht: {contextLine(snapshot)}</div>
-	{#if !snapshot.visibleScreen.isIndependentProbe}
-		<button class="view" onclick={changePanel}>
-			{panel === 'chat' ? 'Mein Gedächtnis' : 'Zum Gespräch'}
-		</button>
-	{/if}
-	{#if panel === 'memory'}<MemoryDrawer {share} {onshare} onclear={clear} />
-	{:else}
-		<div class="introduction">
-			<div class="duck" aria-hidden="true">
-				<DuckStage variant="companion" interactive={false} />
-			</div>
-			<p>{buildContextualHelp(snapshot)}</p>
-		</div>
-		{#if !snapshot.visibleScreen.isIndependentProbe}
-			<div class="log" role="log">
-				{#each messages as message}<p><strong>{message.role}</strong>{message.text}</p>{/each}<span
-					bind:this={tail}
-				></span>
-			</div>
-			<form
-				onsubmit={(event) => {
-					event.preventDefault();
-					void send();
-				}}
-			>
-				<div class="modes">
-					{#each ['question', 'note'] as id}<button
-							type="button"
-							aria-pressed={mode === id}
-							onclick={() => {
-								mode = id === 'note' ? 'note' : 'question';
-								status = '';
-							}}
-						>
-							{id === 'note' ? 'Gedankennotiz merken' : 'Fragen'}
-						</button>{/each}
+	<div class="scroll">
+		{#if panel === 'memory'}<MemoryDrawer {share} {onshare} onclear={clear} />
+		{:else}
+			{#if snapshot.visibleScreen.isIndependentProbe}
+				<p class="introduction">{INDEPENDENT_PROBE_HELP}</p>
+			{:else if !messages.length}
+				<p class="introduction">
+					{snapshot.visibleScreen.termLabel
+						? `Frage zu ${snapshot.visibleScreen.termLabel}? Schieß los.`
+						: 'Hey du – wo hakt’s gerade?'}
+				</p>
+			{/if}
+			{#if !snapshot.visibleScreen.isIndependentProbe}
+				<div class="log" role="log">
+					{#each messages as message}<p>
+							<strong>{message.role}</strong>{message.text}
+						</p>{/each}<span bind:this={tail}></span>
 				</div>
-				<textarea
+			{/if}
+		{/if}
+	</div>
+	{#if panel === 'chat' && !snapshot.visibleScreen.isIndependentProbe}
+		<form
+			onsubmit={(event) => {
+				event.preventDefault();
+				void send();
+			}}
+		>
+			<!-- The same one-line bar as on /tutor: input, microphone, send arrow. -->
+			<BottomBar reserveDuck={false} fixed={false} class="entry-bar">
+				<IconButton
+					icon="bookmark"
+					label={mode === 'note' ? 'Doch fragen' : 'Nur merken'}
+					active={mode === 'note'}
+					onclick={() => {
+						mode = mode === 'note' ? 'question' : 'note';
+						status = '';
+						field?.focus();
+					}}
+				/>
+				<input
+					bind:this={field}
 					name="companion-entry"
 					autocomplete="off"
-					aria-label={mode === 'note' ? 'Gedankennotiz' : 'Deine Frage'}
-					placeholder={mode === 'note' ? 'Was möchtest du festhalten?' : 'Was möchtest du wissen?'}
+					enterkeyhint="send"
+					aria-label={mode === 'note' ? 'Notiz' : 'Deine Frage'}
+					placeholder={mode === 'note' ? 'Kurz festhalten …' : 'Was gibt’s?'}
 					bind:value={input}
-					rows="2"></textarea>
-				<div class="actions">
-					<Dictation
-						ontext={(value) => (input = [input, value].filter(Boolean).join(' '))}
-					/><button
-						class="primary"
-						disabled={!input.trim() || !!controller || app.switching}
-						type="submit"
-					>
-						{controller
-							? 'Antwort ausstehend…'
-							: mode === 'note'
-								? 'Notiz speichern'
-								: 'Frage stellen'}
-					</button>
-				</div>
-			</form>
-			<p role="status">{status}</p>
-		{/if}
+				/>
+				<Dictation
+					ontext={(value) => {
+						input = [input, value].filter(Boolean).join(' ');
+						field?.focus();
+					}}
+				/>
+				<IconButton
+					icon="arrow-up"
+					label={mode === 'note' ? 'Merken' : 'Senden'}
+					class="send"
+					disabled={!input.trim() || !!controller || app.switching}
+					onclick={() => void send()}
+				/>
+			</BottomBar>
+		</form>
+		<p role="status">{controller ? 'Moment …' : status}</p>
 	{/if}
 </dialog>
 
 <style>
 	dialog {
 		position: fixed;
-		inset: auto max(var(--space-m), env(safe-area-inset-right))
-			max(var(--space-m), env(safe-area-inset-bottom)) auto;
+		/* Above the corner duck (DuckCompanion sets the clearance), never over it. */
+		inset: auto var(--corner-inset) var(--companion-clearance, var(--duck-clearance)) auto;
 		margin: 0;
-		width: min(28rem, calc(100vw - 2 * var(--space-m)));
-		max-height: calc(100dvh - 2 * var(--space-m));
-		overflow: auto;
-		overscroll-behavior: contain;
-		border: var(--edge-width) solid var(--hairline);
-		background: var(--card);
-		color: var(--text);
-		padding: var(--gutter);
+		width: min(26rem, calc(100vw - 2 * var(--space-m)));
+		max-height: calc(
+			100dvh - var(--companion-clearance, var(--duck-clearance)) - var(--bar) - var(--space-s)
+		);
+		z-index: var(--z-popup);
+		box-sizing: border-box;
+		overflow: hidden;
+		border: var(--hairline-width) solid var(--hairline);
+		border-block-start: 3px solid var(--duck-accent);
+		border-radius: var(--radius-option);
+		background: var(--palette-paper);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		color: var(--popup-text);
+		padding: var(--space-s);
 		overflow-wrap: anywhere;
 	}
-	header,
-	.actions,
-	.modes {
+	dialog[open] {
 		display: flex;
-		align-items: center;
+		flex-direction: column;
 		gap: var(--space-s);
 	}
 	header {
-		justify-content: space-between;
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-s);
+		flex: none;
 	}
-	h2 {
-		font-size: var(--type-question);
-	}
-	button {
-		cursor: pointer;
-		border: 0;
-		background: var(--well);
-		color: var(--text);
-		border-radius: var(--radius-pill);
-		min-height: var(--hit);
-		padding-inline: var(--space-m);
-	}
-	.close {
-		width: var(--hit);
-		padding: 0;
-		border-radius: 50%;
-		display: grid;
-		place-items: center;
-	}
-	.line {
-		font-size: var(--type-meta);
-		color: var(--text-muted);
-	}
-	.view {
-		margin-block: var(--space-s);
+	/* The only scrolling part: header and entry bar always stay in view. */
+	.scroll {
+		flex: 1 1 auto;
+		min-block-size: 0;
+		overflow: auto;
+		overscroll-behavior: contain;
+		padding-inline: var(--space-s);
 	}
 	.introduction {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-s);
-		margin-block: var(--space-m);
-	}
-	.duck {
-		flex: 0 0 var(--control);
-		height: var(--control);
-		overflow: hidden;
-	}
-	.duck :global(.duck-stage),
-	.duck :global(.air) {
-		height: 100%;
-		width: 100%;
+		margin-block: 0 var(--space-s);
 	}
 	.log strong {
 		display: block;
@@ -259,34 +244,55 @@
 		margin-block-end: var(--space-m);
 	}
 	form {
-		display: grid;
-		gap: var(--space-s);
+		flex: none;
 	}
-	.modes {
-		flex-wrap: wrap;
+	form :global(.entry-bar) {
+		gap: var(--step-1);
+		padding-inline: var(--step-2);
+		box-sizing: border-box;
+		background: var(--well);
+		color: var(--text);
+		border-radius: var(--radius-pill);
 	}
-	[aria-pressed='true'],
-	.primary {
+	form:has(input:focus-visible) :global(.entry-bar) {
+		outline: var(--focus-width) solid var(--focus);
+		outline-offset: 2px;
+	}
+	input {
+		flex: 1;
+		min-inline-size: 0;
+		align-self: stretch;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		padding-inline: var(--space-s);
+	}
+	input:focus-visible {
+		outline: none;
+	}
+	form :global(.m-icon-button[aria-pressed='true']) {
+		background: var(--duck-accent);
+		color: var(--palette-ink);
+		box-shadow: none;
+	}
+	form :global(.send) {
 		background: var(--action);
 		color: var(--action-text);
 	}
-	textarea {
-		width: 100%;
-		background: var(--well);
-		color: var(--text);
-		font: inherit;
-		padding: var(--space-m);
-		border: var(--hairline-width) solid var(--hairline);
-		border-radius: var(--radius-option);
-		resize: none;
-	}
-	.actions {
-		justify-content: flex-end;
-	}
-	/* Locked: sunk and muted like a stage's "Festlegen", never a faded key. */
-	button:disabled {
-		background: var(--well);
+	/* Locked: sunk and muted, never a faded key. */
+	form :global(.send:disabled) {
+		background: var(--surface);
 		color: var(--text-muted);
+		opacity: 1;
 		cursor: not-allowed;
+	}
+	[role='status'] {
+		margin: 0;
+		padding-inline: var(--space-s);
+		font-size: var(--type-meta);
+	}
+	[role='status']:empty {
+		display: none;
 	}
 </style>

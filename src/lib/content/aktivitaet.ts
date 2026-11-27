@@ -9,51 +9,65 @@ function task(taskId: string): TaskRef {
 	return { ...course, taskId };
 }
 
-export const activityStatusCopy: Readonly<
-	Record<ActivityConcept['status'], { label: string; explanation: string }>
+export const activityStatusCopy: Readonly<Record<ActivityConcept['status'], { label: string }>> = {
+	noch_zu_wenig_gesehen: { label: 'Noch zu wenig gesehen' },
+	nicht_gekonnt: { label: 'Wackelt noch' },
+	mit_hilfe_gelungen: { label: 'Mit Tipp' },
+	beherrscht: { label: 'Sitzt' },
+	übertragbar: { label: 'Sitzt sicher' }
+};
+
+export const activityQueueTopics: Readonly<
+	Record<
+		string,
+		{
+			title: string;
+			route: string;
+			type: 'exercise' | 'magazine';
+		}
+	>
 > = {
-	noch_zu_wenig_gesehen: {
-		label: 'Noch zu wenig gesehen',
-		explanation:
-			'Es gibt noch keinen eigenen Versuch, den man deuten könnte. Lesen oder ein Beispiel ansehen zählt hier nicht. Das ist keine Schwäche, es fehlt nur Information.'
+	'gradient-akkumulieren': {
+		title: 'Gradienten addieren',
+		route: '/uebungen?task=a-bp-addieren-erklaeren',
+		type: 'exercise'
 	},
-	nicht_gekonnt: {
-		label: 'Gesehen, noch nicht gekonnt',
-		explanation:
-			'Eine eigene Probe ist an einem benannten Kriterium gescheitert. Der Eintrag gilt für diesen Versuch an diesem Tag. Ein neuer Versuch ist jederzeit offen.'
+	kettenregel: {
+		title: 'Kettenregel',
+		route: '/uebungen?task=a-bp-skizze-rechengraph',
+		type: 'exercise'
 	},
-	mit_hilfe_gelungen: {
-		label: 'Mit Hilfe gelungen',
-		explanation:
-			'Mit Hinweis oder Beispiel hat es geklappt. Später fragt eine kurze Probe ohne Hilfe noch einmal nach.'
+	rechengraph: {
+		title: 'Rechengraph',
+		route: '/uebungen?task=a-bp-preiskette-transfer',
+		type: 'exercise'
 	},
-	beherrscht: {
-		label: 'Sitzt',
-		explanation: 'Mit zeitlichem Abstand und ohne Hilfe gelungen.'
+	gradientencheck: {
+		title: 'Gradienten prüfen',
+		route: '/uebungen?task=a-bp-ki-backward-pruefen',
+		type: 'exercise'
 	},
-	übertragbar: {
-		label: 'Übertragbar',
-		explanation: 'Ohne Hilfe in einem neuen Kontext gelungen.'
+	lernrate: {
+		title: 'Lernrate',
+		route: '/uebungen?task=a-gd-lernrate-auswahl',
+		type: 'exercise'
+	},
+	'numerische-ableitung': {
+		title: 'Schrittweite',
+		route: '/magazin/die-gruene-lampe-luegt',
+		type: 'magazine'
+	},
+	softmax: {
+		title: 'Softmax',
+		route: '/magazin/wie-sicher-sind-sie',
+		type: 'magazine'
+	},
+	kalibrierung: {
+		title: 'Kalibrierung',
+		route: '/magazin/wie-sicher-sind-sie#sicher-menschen',
+		type: 'magazine'
 	}
 };
-
-export const helpLevelLabels: Readonly<Record<0 | 1 | 2 | 3 | 4, string>> = {
-	0: 'ohne Hilfe',
-	1: 'nach Hinweis 1',
-	2: 'nach Hinweis 2',
-	3: 'nach Hinweis 3',
-	4: 'nach Beispiel oder gezeigter Lösung'
-};
-
-export const activityMirrorNotes = {
-	evidence: 'Öffne einen Eintrag, um zu sehen, was bei diesem Versuch beobachtet wurde.',
-	thresholds:
-		'Die Stufen beschreiben einzelne Belege. Sie sind keine geprüften Messwerte und kein Notenersatz.',
-	rhythm:
-		'Hier siehst du deine Übungstage und geplanten Termine. An ruhigen Tagen bleibt ein Kreis offen.',
-	confidence:
-		'Deine Sicherheit vor der Auflösung steht neben dem Ergebnis. Bei wenigen Versuchen zeigen wir Einzelbelege statt einer Quote.'
-} as const;
 
 export const activityMirror: ActivityMirrorSeed = {
 	course,

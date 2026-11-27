@@ -257,16 +257,13 @@ export function contextualReference(
 }
 
 function followUp(screen: ScreenContext): string {
-	if (screen.termId) return 'Wo in der Formel taucht der markierte Term auf?';
-	if (screen.formulaId || screen.formulaLatex)
-		return 'Welchen Teil der Formel möchtest du auseinandernehmen?';
-	if (screen.sketchSummary) return 'Welche Beziehung möchtest du an der Skizze prüfen?';
-	if (screen.media) return 'Welche Aussage aus diesem Teil möchtest du prüfen?';
-	if (screen.exerciseState || screen.taskRef)
-		return 'Welchen ersten Schritt würdest du selbst versuchen?';
-	if (screen.sectionTitle)
-		return 'Welche Aussage in diesem Abschnitt möchtest du genauer verstehen?';
-	return 'Woran arbeitest du gerade, und an welcher Stelle kommst du ins Stocken?';
+	if (screen.termId) return 'Wo steckt der Term in der Formel?';
+	if (screen.formulaId || screen.formulaLatex) return 'Welchen Teil der Formel schauen wir uns an?';
+	if (screen.sketchSummary) return 'Was willst du an deiner Skizze prüfen?';
+	if (screen.media) return 'Welche Stelle beschäftigt dich gerade?';
+	if (screen.exerciseState || screen.taskRef) return 'Was wäre dein erster Schritt?';
+	if (screen.sectionTitle) return 'Was ist hier noch unklar?';
+	return 'Wo hakt’s gerade?';
 }
 
 export function buildContextualHelp(snapshot: AgentContextSnapshot): string {

@@ -2,7 +2,12 @@ import { INDEPENDENT_PROBE_HELP, isProtectedTutorTurn } from '../memory/screen-c
 import { parseMediaUrl } from './media.js';
 import {
 	ApiError,
+	CHECK_RESULTS,
+	EVIDENCE_LEVELS,
+	countsAsMastery,
+	evidenceAttemptId,
 	checkAbort,
+	effectiveResult,
 	isId,
 	isRecord,
 	isRevision,
@@ -13,6 +18,8 @@ import {
 import type {
 	ActivityMirrorSnapshot,
 	ApiProblem,
+	CheckResult,
+	EvidenceLevel,
 	CourseRef,
 	ExerciseAttemptRequest,
 	ExerciseAttemptResponse,
@@ -27,7 +34,6 @@ import type {
 	TutorialCheckResponse
 } from './types.js';
 
-const CHECK_RESULTS = ['korrekt', 'teilweise', 'falsch'] as const;
 const PROBLEM_CODES = [
 	'invalid_input',
 	'unauthorized',
@@ -92,11 +98,24 @@ function isEvidence(value: unknown): value is LearningEvidence {
 		(value.attemptId === undefined || isId(value.attemptId)) &&
 		isId(value.taskId) &&
 		isId(value.learningGoalId) &&
+		isOptionalLevel(value.evidenceLevel) &&
+		(value.result === undefined || isOneOf(value.result, CHECK_RESULTS)) &&
 		isOneOf(value.kind, EVIDENCE_KINDS) &&
 		isRevision(value.helpLevel) &&
 		value.helpLevel <= 4 &&
 		isUtcDate(value.recordedAt)
 	);
+}
+
+function isOptionalLevel(value: unknown): boolean {
+	return value === undefined || isOneOf(value, EVIDENCE_LEVELS);
+}
+
+/** Applies a sent evidence level to `result`, so every consumer sees one consistent state. */
+function withEffectiveResult<T extends { result: CheckResult; evidenceLevel?: EvidenceLevel }>(
+	value: T
+): T {
+	return { ...value, result: effectiveResult(value.result, value.evidenceLevel) };
 }
 
 function isPractice(value: unknown): value is ActivityMirrorSnapshot['recentPractice'][number] {
@@ -106,6 +125,7 @@ function isPractice(value: unknown): value is ActivityMirrorSnapshot['recentPrac
 		isId(value.id) &&
 		isId(value.itemId) &&
 		isOneOf(value.result, CHECK_RESULTS) &&
+		isOptionalLevel(value.evidenceLevel) &&
 		isUtcDate(value.recordedAt)
 	);
 }
@@ -125,6 +145,7 @@ function isTutorialCheck(value: unknown): value is TutorialCheckResponse {
 		value.kind === 'tutorial' &&
 		isId(value.requestId) &&
 		isOneOf(value.result, CHECK_RESULTS) &&
+		isOptionalLevel(value.evidenceLevel) &&
 		isId(value.feedback)
 	);
 }
@@ -136,6 +157,7 @@ function isExerciseAttempt(value: unknown): value is ExerciseAttemptResponse {
 		isId(value.requestId) &&
 		isId(value.attemptId) &&
 		isOneOf(value.result, CHECK_RESULTS) &&
+		isOptionalLevel(value.evidenceLevel) &&
 		isId(value.feedback) &&
 		isList(value.evidence, isEvidence)
 	);
@@ -500,7 +522,7 @@ export class HttpTutorClient implements TutorApiClient {
 		const expectedRequestId = request.requestId;
 		const value = await this.json('/exercises/evaluate', signal, request);
 		requireType(isTutorialCheck(value) && value.requestId === expectedRequestId);
-		return value;
+		return withEffectiveResult(value);
 	}
 
 	async evaluateExercise(
@@ -509,13 +531,14 @@ export class HttpTutorClient implements TutorApiClient {
 	): Promise<ExerciseAttemptResponse> {
 		const expectedRequestId = request.requestId;
 		const expectedTaskId = request.task.taskId;
-		const value = await this.json('/exercises/evaluate', signal, request);
+		const raw = await this.json('/exercises/evaluate', signal, request);
+		requireType(isExerciseAttempt(raw));
+		const value = withEffectiveResult(raw);
 		requireType(
-			isExerciseAttempt(value) &&
-				value.requestId === expectedRequestId &&
+			value.requestId === expectedRequestId &&
 				value.evidence.every(
 					(item) =>
-						value.result === 'korrekt' &&
+						countsAsMastery(value.result) &&
 						item.taskId === expectedTaskId &&
 						(item.attemptId === undefined || item.attemptId === value.attemptId)
 				)
@@ -537,7 +560,16 @@ export class HttpTutorClient implements TutorApiClient {
 		});
 		const value = await this.json(`/activity/mirror?${query}`, signal);
 		requireType(isMirror(value) && sameCourse(value.course, expectedCourse));
-		return value;
+		const recentPractice = value.recentPractice.map(withEffectiveResult);
+		// Evidence of an attempt that is not mastery (partial, wrong, received only) is dropped.
+		const notMastery = new Set(
+			recentPractice.filter(({ result }) => !countsAsMastery(result)).map(({ id }) => id)
+		);
+		const evidence = value.evidence.filter((item) => {
+			const id = evidenceAttemptId(item, recentPractice);
+			return id === undefined || !notMastery.has(id);
+		});
+		return { ...value, recentPractice, evidence };
 	}
 
 	async health(signal?: AbortSignal): ReturnType<TutorApiClient['health']> {

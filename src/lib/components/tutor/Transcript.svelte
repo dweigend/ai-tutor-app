@@ -2,13 +2,11 @@
 	import { getTutorAppContext } from '$lib/api/context.svelte';
 	import { trustedMediaUrl } from '$lib/api/media';
 	import { RichText } from '$lib/modules';
-	import { MOVE_LABEL } from './script';
 	import SketchPreview from './SketchPreview.svelte';
 	import TranscriptImage from './TranscriptImage.svelte';
 	import {
 		rejectedByServer,
 		type LearnerEntry,
-		type LearnerVia,
 		type LiveTurn,
 		type TranscriptEntry
 	} from './types';
@@ -27,38 +25,27 @@
 	const tutorApp = getTutorAppContext();
 
 	let rejected = $derived(live !== null && rejectedByServer(live));
-
-	const VIA_LABEL: Record<LearnerVia, string> = {
-		reply: 'Vorschlag',
-		free: 'Antwort',
-		solution: 'Bittet um Lösung',
-		example: 'Bittet um Beispiel',
-		wait: 'Denkt selbst',
-		sketch: 'Skizze'
-	};
 </script>
 
 {#snippet learner(entry: LearnerEntry, pending: boolean)}
 	<li class="entry entry-learner" class:pending>
 		<p class="role label">Du</p>
 		<div class="body">
-			<p class="tags">
-				<span class="tag label">{VIA_LABEL[entry.via]}</span>
-				{#if entry.confidence !== undefined}
-					<span class="data muted">Sicherheit {entry.confidence} %</span>
-				{/if}
-				{#if pending}<span class="data muted">nicht bestätigt</span>{/if}
-			</p>
+			{#if entry.confidence !== undefined || pending}
+				<p class="tags">
+					{#if entry.confidence !== undefined}
+						<span class="data muted">Sicherheit {entry.confidence} %</span>
+					{/if}
+					{#if pending}<span class="data muted">noch offen</span>{/if}
+				</p>
+			{/if}
 			{#if entry.sketch}
 				<div class="sketch">
-					<SketchPreview
-						snapshot={entry.sketch}
-						label="Skizze, Board {entry.sketch.boardId}, Revision {entry.sketch.revision}"
-					/>
+					<SketchPreview snapshot={entry.sketch} label="Skizze" />
 				</div>
 			{/if}
 			{#if entry.text}
-				<p class="text" class:action={entry.via === 'example'}>{entry.text}</p>
+				<p class="text">{entry.text}</p>
 			{/if}
 		</div>
 	</li>
@@ -72,10 +59,6 @@
 			<li class="entry entry-tutor">
 				<p class="role label">Tutor</p>
 				<div class="body">
-					<p class="tags">
-						{#if entry.boundary}<span class="tag tag-boundary label">Grenze</span>{/if}
-						<span class="tag label">{MOVE_LABEL[entry.move]}</span>
-					</p>
 					<p class="text"><RichText text={entry.text} /></p>
 					{#each entry.media as media (media.id)}
 						{@const origin = globalThis.location?.origin}
@@ -90,8 +73,7 @@
 			<li class="entry entry-tutor entry-wait">
 				<p class="role label">Tutor</p>
 				<div class="body">
-					<p class="tags"><span class="tag label">{MOVE_LABEL.warten}</span></p>
-					<p class="text muted">Der Tutor sagt nichts und wartet, bis du weiterschreibst.</p>
+					<p class="text muted">Alles klar – ich warte auf deinen nächsten Gedanken.</p>
 				</div>
 			</li>
 		{:else}
@@ -116,20 +98,8 @@
 						<p class="label">
 							{live.status === 'aborted' ? 'Abgebrochen' : 'Keine Antwort'}
 						</p>
-						<p>
-							{#if live.status === 'aborted'}
-								Der Zug ist eventuell schon gespeichert.
-							{:else}
-								{live.problem?.message ?? 'Der Tutor hat nicht geantwortet.'}
-							{/if}
-						</p>
-						{#if rejected}
-							<p class="muted">Der Tutor hat den Zug nicht angenommen. Du kannst ihn verwerfen.</p>
-						{:else if onretry}
-							<p class="muted">
-								Abgleichen sendet dieselbe Anfrage-ID und holt eine schon gespeicherte Antwort ab,
-								ohne einen zweiten Zug anzulegen. Oder du beginnst eine neue Sitzung.
-							</p>
+						{#if live.status !== 'aborted'}
+							<p>{live.problem?.message ?? 'Gerade keine Antwort.'}</p>
 						{/if}
 						<div class="problem-actions">
 							{#if rejected}
@@ -137,12 +107,10 @@
 									Verwerfen
 								</button>
 							{:else if onretry}
-								<button type="button" class="button" onclick={onretry}>
-									Mit gleicher ID abgleichen
-								</button>
+								<button type="button" class="button" onclick={onretry}> Nochmal senden </button>
 							{/if}
 							<button type="button" class="button button-quiet" onclick={onrestart}>
-								Neue Sitzung beginnen
+								Neu starten
 							</button>
 						</div>
 					</div>
@@ -191,12 +159,6 @@
 		border: var(--hairline-width) solid var(--hairline);
 	}
 
-	/* The boundary held: a fact, not a deviation, so ink plate instead of crimson (§5.4). */
-	.tag-boundary {
-		background: var(--text);
-		color: var(--surface);
-	}
-
 	.text {
 		max-inline-size: 36rem;
 		white-space: pre-line;
@@ -211,10 +173,6 @@
 
 	.entry-learner.pending .text {
 		color: var(--text-muted);
-	}
-
-	.action {
-		font-style: italic;
 	}
 
 	.sketch {

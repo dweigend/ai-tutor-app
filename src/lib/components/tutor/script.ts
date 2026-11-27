@@ -147,3 +147,15 @@ export function stuckRequest(step: SocraticStep): TutorInput {
 		: undefined;
 	return reply?.input ?? { kind: 'message', text: 'Ich stecke fest.' };
 }
+
+/**
+ * How a typed line goes out. `message` is a free question or guess and is never graded;
+ * `answer` only when the learner explicitly hands in an answer. A confidence set earlier never
+ * turns a question into an answer, and it travels only with an explicit answer.
+ */
+export type DraftMode = 'message' | 'answer';
+
+export function draftInput(text: string, mode: DraftMode, confidence?: number): TutorInput {
+	if (mode !== 'answer') return { kind: 'message', text };
+	return confidence === undefined ? { kind: 'answer', text } : { kind: 'answer', text, confidence };
+}

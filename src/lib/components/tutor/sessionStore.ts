@@ -4,7 +4,7 @@ import type {
 	TutorApiClient,
 	TutorSession as SessionInfo
 } from '$lib/api/types';
-import type { ScriptCursor } from './script';
+import type { DraftMode, ScriptCursor } from './script';
 import type { LiveTurn, TranscriptEntry } from './types';
 
 /**
@@ -22,6 +22,8 @@ export interface SavedSession {
 	live: LiveTurn | null;
 	draft: string;
 	confidence: number | undefined;
+	/** Free question by default; `answer` only after an explicit hand-in switch. */
+	mode?: DraftMode;
 	boundClient: TutorApiClient;
 }
 

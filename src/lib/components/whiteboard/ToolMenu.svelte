@@ -40,7 +40,7 @@
 		{ id: 'undo', label: 'Zurück', icon: 'undo', enabled: canUndo },
 		{ id: 'clear', label: 'Leeren', icon: 'trash', enabled: hasStrokes },
 		{ id: 'save', label: 'Speichern', icon: 'save', enabled: hasStrokes },
-		{ id: 'refine', label: 'Aufbereiten', icon: 'wand', enabled: hasStrokes },
+		{ id: 'refine', label: 'Glätten', icon: 'wand', enabled: hasStrokes },
 		{ id: 'challenge', label: 'Challenge', icon: 'flag', enabled: true }
 	]);
 
@@ -134,20 +134,14 @@
 	<button
 		bind:this={trigger}
 		type="button"
-		class="m-hit tool-trigger"
+		class="m-icon-button tool-trigger"
 		aria-label="Werkzeuge, jetzt {toolName}"
+		title="Werkzeuge, jetzt {toolName}"
 		aria-expanded={open}
 		aria-controls={open ? id : undefined}
 		onclick={toggle}
 	>
 		<Icon name={tool} />
-		<span
-			class="tool-dot"
-			class:eraser={tool === 'eraser'}
-			style:--dot-color={color}
-			aria-hidden="true"
-		></span>
-		<Icon name={open ? 'minus' : 'plus'} size={20} />
 	</button>
 
 	{#if open || closing}
@@ -239,52 +233,11 @@
 		pointer-events: auto;
 	}
 
-	/*
-	 * At rest the menu is one raised pill on the gutter: the tool in hand, its ink and the sign
-	 * that it opens. Same skin as the dock above it.
-	 */
-	.tool-trigger {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-s);
-		block-size: var(--hit);
-		padding-inline: var(--space-m);
-		border: var(--hairline-width) solid color-mix(in srgb, var(--hairline) 45%, transparent);
-		border-radius: var(--radius-pill);
-		background: var(--card);
-		color: var(--text);
-		transition:
-			background-color var(--tap-return) linear,
-			color var(--tap-return) linear;
-	}
-
-	.tool-trigger:active {
-		background: var(--text);
-		color: var(--surface);
-		transition: none;
-	}
-
-	/* An ink dot in the text colour stays readable on the inverted pill. */
-	.tool-trigger:active .tool-dot {
-		outline: var(--hairline-width) solid currentColor;
-		outline-offset: var(--hairline-width);
-	}
-
-	.tool-trigger:active .tool-dot.eraser {
-		border-color: currentColor;
-		outline: 0;
-	}
-
 	.tool-dot {
 		inline-size: var(--tool-dot);
 		block-size: var(--tool-dot);
 		border-radius: 50%;
 		background: var(--dot-color);
-	}
-
-	.tool-dot.eraser {
-		border: var(--hairline-width) solid var(--text);
-		background: transparent;
 	}
 
 	.tool-dock {
@@ -297,9 +250,8 @@
 		flex-direction: column;
 		align-items: center;
 		padding: var(--dock-padding);
-		border: var(--hairline-width) solid color-mix(in srgb, var(--hairline) 45%, transparent);
-		border-radius: var(--radius-pill);
-		background: var(--card);
+		border: 0;
+		background: var(--popup-bg);
 		transform-origin: calc(var(--icon-button-size) / 2) bottom;
 	}
 

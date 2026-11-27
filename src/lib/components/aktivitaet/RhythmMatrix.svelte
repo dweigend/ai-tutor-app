@@ -32,7 +32,7 @@
 			return {
 				date,
 				label: dayFormat.format(new Date(`${date}T12:00:00`)),
-				state: state.join(', ') || 'ruhiger Tag',
+				state: state.join(', ') || 'frei',
 				concepts: point?.labels.join(', ') ?? ''
 			};
 		});
@@ -42,7 +42,7 @@
 <ReadAloud.Segment as="p" class="rhythm-legend">
 	<span><i class="dot" data-kind="practiced" aria-hidden="true"></i> Geübt</span>
 	<span><i class="dot" data-kind="planned" aria-hidden="true"></i> Geplant</span>
-	<span><i class="dot" data-kind="open" aria-hidden="true"></i> Ruhiger Tag</span>
+	<span><i class="dot" data-kind="open" aria-hidden="true"></i> Frei</span>
 	<span><i class="dot" data-kind="open" data-today aria-hidden="true"></i> Heute</span>
 </ReadAloud.Segment>
 <div class="rhythm" aria-hidden="true">
@@ -143,7 +143,7 @@
 	}
 
 	.dot[data-kind='practiced'] {
-		background: var(--mark);
+		background: var(--text);
 	}
 
 	.dot[data-kind='planned']::before {

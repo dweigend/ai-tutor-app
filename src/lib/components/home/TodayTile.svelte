@@ -5,97 +5,146 @@
 	interface Props {
 		done: number;
 		planned: number;
-		href?: string;
-		area?: string;
+		href: string;
+		/**
+		 * The tile holds the bottom right corner of the screen, where the corner duck stands. Its
+		 * link then ends beside the duck and no band runs below it. Leave it off anywhere else.
+		 */
+		clearDuckCorner?: boolean;
 	}
 
-	let { done, planned, href, area }: Props = $props();
+	let { done, planned, href, clearDuckCorner = false }: Props = $props();
 	let progress = $derived(todayProgress(done, planned));
+	let steps = $derived(
+		Array.from({ length: progress.target }, (_, index) => index < progress.completed)
+	);
+
+	/** The field above the duck belongs to the tile: a tap there opens the same link. */
+	function openFromCap(event: MouseEvent & { currentTarget: HTMLElement }) {
+		event.currentTarget.parentElement?.querySelector<HTMLAnchorElement>('a.tile')?.click();
+	}
 </script>
 
-<Tile tone="paper" {href} {area} ariaLabel={progress.label}>
-	<span class="today">
-		<span class="category">Heute</span>
-		<span class="title">Tagesprogramm</span>
-		<span class="count"><strong>{progress.completed}</strong> von {progress.target} erledigt</span>
-		<progress aria-label={progress.label} max={progress.target || 1} value={progress.completed}
-		></progress>
+<!--
+	The day without a word: one band per planned learning step, stacked from the ground up like
+	building blocks. A finished step is a solid bar, an open one a thin rule. The bands start
+	below the badge, so none runs through it. The link carries the figures for screen readers.
+
+	With `clearDuckCorner` the tile is cut like an L: the corner of the duck stays free. The link
+	is the column beside the duck, the cap is the field above it, and the bands are trimmed by the
+	same cut.
+-->
+<div class="today" data-clear-duck={clearDuckCorner ? '' : undefined}>
+	<span class="day" aria-hidden="true">
+		{#each steps as finished, index (index)}
+			<span class="step" data-done={finished ? '' : undefined}></span>
+		{/each}
 	</span>
-</Tile>
+	<Tile type="today" {href} ariaLabel={progress.label} />
+	{#if clearDuckCorner}
+		<span class="cap" aria-hidden="true" onclick={openFromCap}></span>
+	{/if}
+</div>
 
 <style>
 	.today {
+		--tile: var(--type-today);
+		--tile-text: var(--type-today-text);
+
+		position: relative;
 		display: grid;
-		align-content: end;
-		gap: 0.35rem;
-		inline-size: 100%;
-		block-size: 100%;
-		font-family: var(--font-ui);
+		grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+		min-inline-size: 0;
+		min-block-size: 0;
+		container: today / size;
 	}
 
-	.category {
-		color: var(--text-muted);
-		font-size: 0.75rem;
-		font-weight: 600;
-		letter-spacing: 0.035em;
-		text-transform: uppercase;
+	.today[data-clear-duck] {
+		grid-template:
+			'link cap' minmax(0, 1fr)
+			'link .' var(--duck-clearance) / minmax(0, 1fr) var(--corner-clearance);
 	}
 
-	.title {
-		font-size: clamp(1.125rem, 2.4vw, 1.75rem);
-		font-weight: 650;
-		line-height: 1.12;
-		letter-spacing: -0.025em;
+	/* The colour field and its bands lie below the link, which only adds badge and focus ring. */
+	.day {
+		/* Badge with its ring, and the padding of the tile head around it (Tile.svelte). */
+		--head-pad: var(--space-m);
+
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column-reverse;
+		padding-block-start: calc(
+			2 * var(--head-pad) + var(--sign-size) + 2 * var(--icon-stroke) + var(--edge-top, 0) *
+				env(safe-area-inset-top, 0px)
+		);
+		background: var(--tile);
+		pointer-events: none;
 	}
 
-	.count {
-		color: var(--text-muted);
-		font-size: 0.875rem;
-		font-variant-numeric: tabular-nums;
+	.today[data-clear-duck] .day {
+		--cut-x: max(0px, calc(100% - var(--corner-clearance)));
+		--cut-y: max(0px, calc(100% - var(--duck-clearance)));
+
+		clip-path: polygon(
+			0 0,
+			100% 0,
+			100% var(--cut-y),
+			var(--cut-x) var(--cut-y),
+			var(--cut-x) 100%,
+			0 100%
+		);
 	}
 
-	.count strong {
-		color: var(--text);
-		font-size: clamp(1.5rem, 3.6vw, 3rem);
-		font-weight: 650;
-		line-height: 1;
+	.today > :global(a.tile) {
+		z-index: 1;
+		background: transparent;
 	}
 
-	progress {
-		appearance: none;
-		inline-size: 100%;
-		block-size: 0.5rem;
-		overflow: hidden;
-		margin-block-start: 0.3rem;
-		border: 1px solid var(--text-muted);
-		border-radius: var(--radius-pill);
-		background: var(--well);
+	.today[data-clear-duck] > :global(a.tile) {
+		grid-area: link;
 	}
 
-	progress::-webkit-progress-bar {
-		background: var(--well);
+	.cap {
+		z-index: 1;
+		grid-area: cap;
+		cursor: pointer;
 	}
 
-	progress::-webkit-progress-value {
-		background: var(--mark);
-		box-shadow: inset -1px 0 var(--mark-border);
+	.step {
+		display: grid;
+		flex: 1;
+		align-items: center;
+		min-block-size: 0;
 	}
 
-	progress::-moz-progress-bar {
-		background: var(--mark);
-		box-shadow: inset -1px 0 var(--mark-border);
+	.step::before {
+		block-size: var(--edge-width);
+		background: var(--tile-text);
+		content: '';
 	}
 
-	/* On a phone the tile may reach below the fold: label, count and bar stand at its top. */
-	@media (max-width: 47.999rem) {
-		.today {
-			align-content: start;
+	.step[data-done]::before {
+		block-size: 62%;
+	}
+
+	/* A small tile moves its badge closer to the corner (Tile.svelte); the bands follow. */
+	@container today (max-width: 9.25rem) or (max-height: 7.5rem) {
+		.day {
+			--head-pad: var(--space-s);
+		}
+	}
+
+	/* Beside the duck the link is narrower by the duck's column: 96px without a safe area. */
+	@container today (max-width: calc(9.25rem + 96px)) {
+		.today[data-clear-duck] .day {
+			--head-pad: var(--space-s);
 		}
 	}
 
 	@media (forced-colors: active) {
-		progress {
-			appearance: auto;
+		.step::before {
+			background: CanvasText;
 		}
 	}
 </style>

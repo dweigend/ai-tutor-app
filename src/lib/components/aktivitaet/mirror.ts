@@ -1,29 +1,135 @@
+import {
+	evidenceAttemptId,
+	EVIDENCE_LEVELS,
+	effectiveResult,
+	sameCourse
+} from '../../api/types.js';
 import type {
 	ActivityMirrorSnapshot,
+	ApiMode,
 	CheckResult,
 	CourseRef,
-	EvidenceKind,
+	EvidenceLevel,
 	LearningEvidence
-} from '$lib/api/types';
-import { exercises, tutorials, type ActivityMirrorSeed } from '$lib/content';
+} from '../../api/types.js';
+import type { ActivityConcept } from '../../content/types.js';
+import { tutorialChecks, tutorials } from '../../content/tutorials.js';
+import { exercises } from '../../content/uebungen.js';
 
-type HelpLevel = 0 | 1 | 2 | 3 | 4;
-type SeedObservation = ActivityMirrorSeed['observations'][number];
+type Practice = Omit<
+	ActivityMirrorSnapshot['recentPractice'][number],
+	'result' | 'evidenceLevel'
+> & {
+	result: string;
+	evidenceLevel?: string;
+};
+type MirrorInput = Omit<ActivityMirrorSnapshot, 'recentPractice'> & {
+	recentPractice: readonly Practice[];
+};
+export type LiveObservation = Pick<LearningEvidence, 'learningGoalId' | 'taskId' | 'recordedAt'> &
+	Partial<Pick<LearningEvidence, 'kind' | 'helpLevel'>> & { result: string };
+type ConceptStatus = ActivityConcept['status'] | 'eingereicht_ungeprueft';
 
-/** One dated line in the evidence list, from the seed or recorded live through the API. */
-export interface EvidenceRow {
-	key: string;
-	recordedAt: string;
-	origin: 'seed' | 'live';
-	kind: 'attempted' | 'seen' | 'solution-seen';
-	title: string;
-	outcome?: CheckResult | 'nicht_beurteilbar';
-	helpLevel?: HelpLevel;
-	confidenceBefore?: number;
-	criterion?: string;
-	evidenceKind?: EvidenceKind;
-	transferDistance?: 'near' | 'far';
-	elapsedSinceLearningDays?: number;
+function isEvidenceLevel(value: unknown): value is EvidenceLevel {
+	return EVIDENCE_LEVELS.some((level) => level === value);
+}
+
+/** The result a practice entry stands for: a sent evidence level wins over the legacy result. */
+function practiceResult(practice: Practice): string {
+	return isEvidenceLevel(practice.evidenceLevel)
+		? effectiveResult(practice.result as CheckResult, practice.evidenceLevel)
+		: practice.result;
+}
+
+/** Help is known only when the API sends it; an unknown level is never read as "no help". */
+function helpOf(item: LiveObservation): 'none' | 'some' | 'unknown' {
+	if (typeof item.helpLevel !== 'number') return 'unknown';
+	return item.helpLevel > 0 ? 'some' : 'none';
+}
+
+function goalsForPractice(course: CourseRef, practice: Practice): readonly string[] {
+	if (practice.kind === 'exercise') {
+		return (
+			exercises.find(({ task }) => sameCourse(task, course) && task.taskId === practice.itemId)
+				?.learningGoalIds ?? []
+		);
+	}
+	const checks = tutorialChecks.filter(
+		(check) => sameCourse(check.course, course) && check.tutorialId === practice.itemId
+	);
+	const goals = new Set(checks.map((check) => check.learningGoalId ?? check.checkId));
+	// An attempt without a check ID can only be attributed if the tutorial has one goal.
+	return goals.size === 1 ? [...goals] : [];
+}
+
+export function conceptEvidence(snapshots: readonly MirrorInput[]): LiveObservation[] {
+	return snapshots.flatMap(({ course, recentPractice, evidence }) => {
+		const byAttempt = new Map<string, LearningEvidence[]>();
+		const unmatched = new Set(evidence);
+		for (const item of evidence) {
+			const id = evidenceAttemptId(item, recentPractice);
+			if (!id) continue;
+			byAttempt.set(id, [...(byAttempt.get(id) ?? []), item]);
+			unmatched.delete(item);
+		}
+		const observations = recentPractice.flatMap((practice): LiveObservation[] => {
+			const linked = byAttempt.get(practice.id);
+			const result = practiceResult(practice);
+			if (linked) return linked.map((item) => ({ ...item, result }));
+			return goalsForPractice(course, practice).map((learningGoalId) => ({
+				learningGoalId,
+				taskId: practice.itemId,
+				recordedAt: practice.recordedAt,
+				result
+			}));
+		});
+		for (const item of unmatched) {
+			const result = effectiveResult(
+				item.result ?? 'nicht_pruefbar_oder_alternativweg',
+				item.evidenceLevel
+			);
+			observations.push({ ...item, result });
+		}
+		return observations;
+	});
+}
+
+export function resolveConceptStatus(
+	concept: Pick<ActivityConcept, 'learningGoalId' | 'status'>,
+	liveEvidence: readonly LiveObservation[],
+	mode: ApiMode
+): ConceptStatus {
+	const observations = liveEvidence
+		.filter((item) => item.learningGoalId === concept.learningGoalId)
+		.sort((left, right) => Date.parse(right.recordedAt) - Date.parse(left.recordedAt));
+	const [latest, ...earlier] = observations;
+	if (!latest) return mode === 'mock' ? concept.status : 'noch_zu_wenig_gesehen';
+	const help = helpOf(latest);
+	switch (latest.result) {
+		case 'falsch':
+			return 'nicht_gekonnt';
+		case 'teilweise':
+			// Partial knowledge without help is not a success; only with help it counts as "mit Hilfe".
+			return help === 'some' ? 'mit_hilfe_gelungen' : 'nicht_gekonnt';
+		case 'nicht_pruefbar_oder_alternativweg':
+			return 'eingereicht_ungeprueft';
+		case 'korrekt': {
+			// A correct answer after a hint, or without a known help level, is never mastery.
+			if (help !== 'none') return 'mit_hilfe_gelungen';
+			const priorIndependentSuccess = earlier.some(
+				(item) =>
+					item.result === 'korrekt' &&
+					helpOf(item) === 'none' &&
+					Date.parse(item.recordedAt) < Date.parse(latest.recordedAt)
+			);
+			const newTask = earlier.every((item) => item.taskId !== latest.taskId);
+			return latest.kind === 'transfer' && priorIndependentSuccess && newTask
+				? 'übertragbar'
+				: 'beherrscht';
+		}
+		default:
+			return 'noch_zu_wenig_gesehen';
+	}
 }
 
 export interface CalendarPoint {
@@ -32,13 +138,6 @@ export interface CalendarPoint {
 	kind: 'planned' | 'practiced';
 	labels: readonly string[];
 }
-
-export interface LiveEvidence {
-	rows: EvidenceRow[];
-	evidence: LearningEvidence[];
-}
-
-const SEEN_TITLE = { seen: 'Beispiel angesehen', 'solution-seen': 'Lösung angesehen' } as const;
 
 /** Every course the app records practice in, so the mirror sees exercises from all of them. */
 export function practiceCourses(base: CourseRef): CourseRef[] {
@@ -51,84 +150,6 @@ export function practiceCourses(base: CourseRef): CourseRef[] {
 		all.map((course) => [`${course.courseId}@${course.courseVersion}`, course])
 	);
 	return [...unique.values()].map(({ courseId, courseVersion }) => ({ courseId, courseVersion }));
-}
-
-function taskTitle(taskId: string, seed: ActivityMirrorSeed, attemptId?: string): string {
-	const exercise = exercises.find((item) => item.task.taskId === taskId);
-	if (exercise) return exercise.title;
-	const concept = seed.concepts.find((item) => 'attemptId' in item && item.attemptId === attemptId);
-	return concept?.label ?? taskId;
-}
-
-export function seedRows(seed: ActivityMirrorSeed): EvidenceRow[] {
-	return seed.observations.map((observation: SeedObservation, index) => {
-		if (observation.kind !== 'attempted') {
-			return {
-				key: `seed-${index}`,
-				recordedAt: observation.recordedAt,
-				origin: 'seed',
-				kind: observation.kind,
-				title: SEEN_TITLE[observation.kind]
-			};
-		}
-		return {
-			key: observation.attemptId,
-			recordedAt: observation.recordedAt,
-			origin: 'seed',
-			kind: 'attempted',
-			title: taskTitle(observation.task.taskId, seed, observation.attemptId),
-			outcome: observation.outcome,
-			helpLevel: observation.helpLevel,
-			confidenceBefore: observation.confidenceBefore,
-			criterion: observation.criterion,
-			evidenceKind: observation.evidenceKind,
-			transferDistance: observation.transferDistance,
-			elapsedSinceLearningDays: observation.elapsedSinceLearningDays
-		};
-	});
-}
-
-function practiceTitle(
-	practice: ActivityMirrorSnapshot['recentPractice'][number],
-	seed: ActivityMirrorSeed
-) {
-	if (practice.kind === 'exercise') return taskTitle(practice.itemId, seed);
-	const tutorial = tutorials.find((item) => item.id === practice.itemId);
-	return tutorial ? `Erklärung · ${tutorial.title}` : practice.itemId;
-}
-
-/** Evidence names its attempt explicitly; older answers without `attemptId` fall back to the id prefix. */
-function belongsTo(item: LearningEvidence, attemptId: string): boolean {
-	if (item.attemptId !== undefined) return item.attemptId === attemptId;
-	return item.id.startsWith(`${attemptId}:`);
-}
-
-/** Turns API snapshots into evidence rows, linked to their attempt by `attemptId`. */
-export function liveEvidence(
-	snapshots: readonly ActivityMirrorSnapshot[],
-	seed: ActivityMirrorSeed
-): LiveEvidence {
-	const evidence = snapshots.flatMap((snapshot) => snapshot.evidence);
-	const rows = snapshots.flatMap((snapshot) =>
-		snapshot.recentPractice.map((practice): EvidenceRow => {
-			const linked = evidence.find((item) => belongsTo(item, practice.id));
-			return {
-				key: `live-${practice.id}`,
-				recordedAt: practice.recordedAt,
-				origin: 'live',
-				kind: 'attempted',
-				title: practiceTitle(practice, seed),
-				outcome: practice.result,
-				helpLevel: linked?.helpLevel,
-				evidenceKind: linked?.kind
-			};
-		})
-	);
-	return { rows, evidence };
-}
-
-export function newestFirst(rows: readonly EvidenceRow[]): EvidenceRow[] {
-	return [...rows].sort((left, right) => right.recordedAt.localeCompare(left.recordedAt));
 }
 
 /** Local calendar date as YYYY-MM-DD, the format of the seed's monthly points. */

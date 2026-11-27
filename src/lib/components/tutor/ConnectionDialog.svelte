@@ -24,9 +24,7 @@
 	let controller: AbortController | null = null;
 
 	let live = $derived(tutorApp.config.mode === 'http');
-	let statusLabel = $derived(
-		tutorApp.switching ? 'Verbindung …' : live ? 'Live-API' : 'Demo-Modus'
-	);
+	let statusLabel = $derived(tutorApp.switching ? 'Verbinde …' : live ? 'Live-Tutor' : 'Lokal');
 
 	function onOpenChange(next: boolean) {
 		if (!next) {
@@ -41,7 +39,7 @@
 
 	function describe(error: unknown): string {
 		if (error instanceof ApiError) return error.problem.message;
-		return 'Die API hat nicht wie erwartet geantwortet.';
+		return 'Server antwortet nicht.';
 	}
 
 	async function testConnection() {
@@ -80,29 +78,26 @@
 		<Dialog.Overlay class="dialog-overlay" />
 		<Dialog.Content class="dialog-content connection-dialog" data-surface="white">
 			<Dialog.Title>Verbindung</Dialog.Title>
-			<Dialog.Description class="muted">
-				Im Demo-Modus antwortet ein festes Kursskript im Browser. Die Live-API spricht mit einem
-				Tutor-Server unter <span class="data">/api/v1</span>. Ein Wechsel beginnt neue Sitzungen.
-			</Dialog.Description>
+			<Dialog.Description class="visually-hidden">Verbindungsmodus wählen</Dialog.Description>
 
 			<fieldset class="modes">
 				<legend class="label">Modus</legend>
 				<label class="mode">
 					<input type="radio" name="api-mode" value="mock" bind:group={mode} />
-					<span>Demo-Modus</span>
+					<span>Lokal</span>
 				</label>
 				<label class="mode">
 					<input type="radio" name="api-mode" value="http" bind:group={mode} />
-					<span>Live-API</span>
+					<span>Live-Tutor</span>
 				</label>
 			</fieldset>
 
 			{#if mode === 'http'}
 				<label>
-					<input type="checkbox" bind:checked={consent} /> Lernverlauf und Notizen mit dieser API teilen
+					<input type="checkbox" bind:checked={consent} /> Notizen und Verlauf mit dem Tutor teilen
 				</label>
 				<label class="url">
-					<span class="label">Basis-URL</span>
+					<span class="label">Server-URL</span>
 					<input
 						type="url"
 						bind:value={baseUrl}
@@ -114,7 +109,6 @@
 						autocomplete="url"
 						spellcheck="false"
 					/>
-					<span class="data muted">Leer lassen für dieselbe Adresse wie diese Seite.</span>
 				</label>
 				<div class="test">
 					<button
@@ -123,13 +117,13 @@
 						disabled={health.kind === 'testing'}
 						onclick={testConnection}
 					>
-						{health.kind === 'testing' ? 'Wird geprüft …' : 'Verbindung testen'}
+						{health.kind === 'testing' ? 'Prüfe …' : 'Prüfen'}
 					</button>
 					<p class="health" aria-live="polite">
 						{#if health.kind === 'ok'}
-							<span class="tag tag-ok label">Erreichbar</span> API v1 antwortet.
+							<span class="tag tag-ok label">Verbunden</span>
 						{:else if health.kind === 'failed'}
-							<span class="tag tag-fail label">Nicht erreichbar</span> {health.message}
+							<span class="tag tag-fail label">Keine Verbindung</span> {health.message}
 						{/if}
 					</p>
 				</div>
@@ -141,7 +135,7 @@
 
 			<div class="actions">
 				<Dialog.Close class="button button-quiet">Abbrechen</Dialog.Close>
-				<button type="button" class="button" onclick={apply}>Übernehmen</button>
+				<button type="button" class="button" onclick={apply}>Speichern</button>
 			</div>
 		</Dialog.Content>
 	</Dialog.Portal>

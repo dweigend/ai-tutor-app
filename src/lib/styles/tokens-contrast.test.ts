@@ -188,3 +188,47 @@ for (const surface of SURFACES) {
 		assert.ok(ratio >= TEXT_MIN, `check is ${ratio.toFixed(2)}`);
 	});
 }
+
+const globalRoles = declarations(ruleBody(':root {'));
+function color(role: string): string {
+	const value = globalRoles.get(role);
+	assert.ok(value, role);
+	const ref = /^var\(--([\w-]+)\)$/.exec(value);
+	return ref ? color(ref[1]) : expandHex(value);
+}
+for (const role of [
+	'type-exercise',
+	'type-explanation',
+	'type-magazine',
+	'type-whiteboard',
+	'type-activity',
+	'type-today',
+	'status-good',
+	'status-good-flash',
+	'status-mid',
+	'status-bad',
+	'status-neutral'
+]) {
+	test(role + ' has a readable text partner', () =>
+		assert.ok(contrast(color(role), color(role + '-text')) >= TEXT_MIN, role)
+	);
+}
+for (const role of ['popup-bg', 'popup-duck-bg']) {
+	test(role + ' text passes on the darkest possible backdrop', () => {
+		const match = /^rgb\((\d+) (\d+) (\d+) \/ (\d+)%\)$/.exec(globalRoles.get(role) ?? '');
+		assert.ok(match);
+		const alpha = Number(match[4]) / 100;
+		assert.ok(alpha > 0 && alpha < 1);
+		const composited =
+			'#' +
+			match
+				.slice(1, 4)
+				.map((channel) =>
+					Math.round(Number(channel) * alpha)
+						.toString(16)
+						.padStart(2, '0')
+				)
+				.join('');
+		assert.ok(contrast(composited, color('popup-text')) >= TEXT_MIN);
+	});
+}

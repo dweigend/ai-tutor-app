@@ -55,7 +55,7 @@ export function setTutorAppContext(): TutorAppContext {
 	let clientReady = false;
 	let consentFor = $state.raw<TutorApiClient | null>(null);
 	let connection = $state.raw<{ client: TutorApiClient; config: ApiConnectionConfig }>({
-		client: createBlockedClient('Die API-Konfiguration wird noch geladen.'),
+		client: createBlockedClient('Verbindung wird geladen.'),
 		config: { mode: 'mock' }
 	});
 	let configError = $state<string | null>(null);
@@ -101,9 +101,7 @@ export function setTutorAppContext(): TutorAppContext {
 
 	function showConfigError(error: unknown, blockSubmissions = false): void {
 		const message =
-			error instanceof ApiError
-				? error.problem.message
-				: 'Die API-Konfiguration konnte nicht geladen werden.';
+			error instanceof ApiError ? error.problem.message : 'Verbindung fehlgeschlagen.';
 		configError = message;
 		if (blockSubmissions) {
 			clientReady = false;

@@ -32,12 +32,45 @@ registerHooks({
 
 const { default: ConfidenceStrip } = await import('./ConfidenceStrip.svelte');
 
-test('confidence renders its question as visible text and uses it to name the rating', () => {
-	const { body } = render(ConfidenceStrip, { props: { value: 50 } });
-	const label = body.match(/<p class="confidence-label" id="([^"]+)">Wie sicher\?<\/p>/);
-	assert.ok(label);
-	assert.match(body, new RegExp(`<div[^>]+aria-labelledby="${label[1]}"[^>]+role="slider"`));
-	assert.equal([...body.matchAll(/class="confidence-segment"/g)].length, 4);
-	assert.equal([...body.matchAll(/data-filled="true"/g)].length, 2);
-	assert.match(body, /<button[^>]+class="m-hit confidence-none"[^>]*>\s*ohne Angabe/);
+test('confidence shows no helper words; its name and reading stay for screen readers', () => {
+	const { body } = render(ConfidenceStrip, { props: { value: 75 } });
+	assert.match(body, /<div[^>]+role="group"[^>]+aria-label="Wie sicher\?"/);
+	assert.doesNotMatch(body, /confidence-label|confidence-reading/);
+	assert.doesNotMatch(body, />\s*(Wie sicher\?|ohne Angabe|ziemlich sicher)\s*</);
+	assert.match(body, /aria-valuetext="ziemlich sicher, 75 Prozent"/);
+});
+
+test('confidence is one − … + slider with a marked middle, no circles, no extra button', () => {
+	const { body } = render(ConfidenceStrip, { props: { value: 75 } });
+	assert.equal([...body.matchAll(/role="slider"/g)].length, 1);
+	assert.equal([...body.matchAll(/class="fader-tick/g)].length, 5);
+	assert.equal([...body.matchAll(/data-middle="true"/g)].length, 1);
+	// − and + are finger shortcuts beside the axis; they stay out of the tab order.
+	const ends = [
+		...body.matchAll(/<button[^>]*class="confidence-end[^"]*"[^>]*>([^<]*)<\/button>/g)
+	];
+	assert.deepEqual(
+		ends.map((end) => end[1].trim()),
+		['−', '+']
+	);
+	for (const end of ends) assert.match(end[0], /tabindex="-1"/);
+	assert.equal([...body.matchAll(/<button/g)].length, 2);
+	assert.doesNotMatch(body, /confidence-segment|confidence-none|ohne Angabe<\/button>/);
+	assert.match(body, /aria-valuetext="ziemlich sicher, 75 Prozent"/);
+	assert.match(body, /class="confidence-fill/);
+});
+
+test('untouched, the grip rests in the middle without a written reading', () => {
+	const { body } = render(ConfidenceStrip, { props: {} });
+	assert.doesNotMatch(body, /data-touched/);
+	assert.match(body, /aria-valuetext="nicht gewählt"/);
+	assert.doesNotMatch(body, />\s*ohne Angabe\s*</);
+	assert.doesNotMatch(body, /class="confidence-fill/);
+});
+
+test('"ohne Angabe" (null) is the touched middle', () => {
+	const { body } = render(ConfidenceStrip, { props: { value: null } });
+	assert.match(body, /data-touched="true"/);
+	assert.match(body, /aria-valuetext="ohne Angabe"/);
+	assert.match(body, /data-side="middle"/);
 });

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { ReadAloud, SurfaceShell } from '$lib/modules';
-	import { areaFor, areaNumber, type AreaPath } from '$lib/navigation';
+	import { SurfaceShell } from '$lib/modules';
+	import { areaFor, type AreaPath } from '$lib/navigation';
 
 	interface Props {
 		/** The area this page belongs to; sets the surface, the bar mark and the title. */
@@ -14,10 +14,6 @@
 
 	let { area, children, framed = false }: Props = $props();
 
-	/*
-	 * App glue for SurfaceShell (DESIGN.md §11 P1): the module gets routes as props, this file
-	 * knows the navigation. The grid sign leads straight to the start page (issue #45).
-	 */
 	let entry = $derived(areaFor(area));
 </script>
 
@@ -41,13 +37,9 @@
 </SurfaceShell.Root>
 
 {#snippet barContents()}
-	<SurfaceShell.Mark href={resolve(area)} index={areaNumber(area)} heading={!framed}>
+	<SurfaceShell.Mark href={resolve(area)} heading={!framed}>
 		{entry.label}
 	</SurfaceShell.Mark>
-	<SurfaceShell.Actions>
-		<ReadAloud.Trigger />
-		<SurfaceShell.Grid href={resolve('/')} />
-	</SurfaceShell.Actions>
 {/snippet}
 
 <style>
@@ -62,13 +54,8 @@
 		padding-inline: 0;
 	}
 
-	.bar-frame :global(.shell-mark),
-	.bar-frame :global(.shell-actions) {
+	.bar-frame :global(.shell-mark) {
 		padding-inline: var(--gutter);
-	}
-
-	.bar-frame :global(.shell-actions) {
-		padding-inline-start: 0;
 	}
 
 	.area-content.area-frame {

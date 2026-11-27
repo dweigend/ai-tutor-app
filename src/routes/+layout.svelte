@@ -17,10 +17,15 @@
 	import '$lib/styles/fonts.css';
 	import '$lib/styles/tokens.css';
 	import '$lib/styles/base.css';
+	import '$lib/styles/layouts.css';
+	import GlobalHomeButton from '$lib/components/shell/GlobalHomeButton.svelte';
+	import TopEdgeDrawer from '$lib/components/shell/TopEdgeDrawer.svelte';
+	import { provideTopDrawer } from '$lib/components/shell/top-drawer.svelte';
 	import '$lib/modules/modules.css';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+	provideTopDrawer();
 	const tutorApp = setTutorAppContext();
 	let main: HTMLElement;
 	$effect.pre(() => {
@@ -46,11 +51,14 @@
 
 	// Route change: the new surface runs up with a hard edge (DESIGN.md §4.5). Query or hash
 	// changes on the same page keep still. A start tile opens its area out of the tile's
-	// rectangle, and the way back closes into that tile's place (issue #10).
+	// rectangle, and the way back closes into that tile's place (issue #10). Leaving `/tutor` is
+	// a hard cut: the pull-down gesture has already moved the duck, and a running View
+	// Transition would cover the page so the corner duck could not be hit for its 500 ms (P0-1).
 	onNavigate((navigation) => {
 		const from = navigation.from?.url;
 		const to = navigation.to?.url;
 		if (!from || !to || from.pathname === to.pathname) return;
+		if (navigation.from?.route.id === '/tutor') return;
 		return startSurfaceBlende(document, navigation.complete, {
 			from: homeTileRect(document, to),
 			to: () => homeTileRect(document, from)
@@ -103,20 +111,24 @@
 {#if tutorApp.configError}
 	<div class="config-banner" data-surface="crimson" role="alert">
 		<p>
-			<span class="label">API-Konfiguration</span>
+			<span class="label">Verbindung</span>
 			<span>{tutorApp.configError}</span>
 		</p>
 		<button type="button" class="config-banner-action" onclick={() => tutorApp.switchMode('mock')}>
-			Im Demo-Modus fortfahren
+			Lokal weitermachen
 		</button>
 	</div>
 {/if}
 
 <ReadAloud.Provider adapter={speech}>
+	<TopEdgeDrawer />
+	{#if page.route.id !== '/'}<GlobalHomeButton />{/if}
 	<main
 		bind:this={main}
 		id="main"
-		class:buffered={page.url.pathname === '/' || page.url.pathname === '/erklaerungen'}
+		data-layout={['/', '/erklaerungen', '/tutor', '/whiteboard'].includes(page.route.id ?? '')
+			? 'canvas'
+			: 'feed'}
 		tabindex="-1"
 	>
 		{@render children()}
@@ -125,15 +137,6 @@
 </ReadAloud.Provider>
 
 <style>
-	/*
-	 * Foot buffer of a scroll page: its last row ends above the duck in the corner. Home and
-	 * Erklärungen take it here on paper; the other areas carry the same 96px inside their own
-	 * surface, and a stage or the whiteboard fills the viewport and takes none.
-	 */
-	main.buffered {
-		--shell-min-height: calc(100dvh - 96px);
-		padding-bottom: 96px;
-	}
 	main:focus {
 		outline: none;
 	}

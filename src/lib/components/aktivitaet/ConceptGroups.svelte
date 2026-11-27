@@ -1,85 +1,139 @@
 <script lang="ts">
-	import type { LearningEvidence } from '$lib/api/types';
+	import type { ApiMode } from '$lib/api/types';
+	import { activityStatusCopy, activityQueueTopics } from '$lib/content/aktivitaet';
+	import type { ActivityConcept } from '$lib/content';
 	import {
-		activityMirrorNotes,
-		activityStatusCopy,
-		helpLevelLabels,
-		type ActivityConcept
-	} from '$lib/content';
-	import { Icon, ReadAloud, RichText, speakRichText } from '$lib/modules';
-	import { evidenceKindLabel } from './labels';
+		LEARNING_QUEUE_EVENT,
+		LEARNING_QUEUE_KEY,
+		readLearningQueue,
+		toggleLearningQueue
+	} from '$lib/learning-queue';
+	import { IconButton, ReadAloud, StatusSignal } from '$lib/modules';
+	import { routeOpensInMode } from '../uebungen/stage-model';
+	import { resolveConceptStatus, type LiveObservation } from './mirror';
 
-	interface Props {
+	let {
+		concepts,
+		liveEvidence,
+		mode
+	}: {
 		concepts: readonly ActivityConcept[];
-		liveEvidence: readonly LearningEvidence[];
-		attemptDates: ReadonlyMap<string, string>;
+		liveEvidence: readonly LiveObservation[];
+		mode: ApiMode;
+	} = $props();
+
+	const signals = {
+		eingereicht_ungeprueft: 'neutral',
+		noch_zu_wenig_gesehen: 'neutral',
+		nicht_gekonnt: 'bad',
+		mit_hilfe_gelungen: 'mid',
+		beherrscht: 'good',
+		übertragbar: 'good'
+	} as const;
+
+	let queued = $state(new Set<string>());
+	let queueError = $state(false);
+	let ready = $state(false);
+
+	const storage = {
+		getItem: (key: string) => window.localStorage.getItem(key),
+		setItem: (key: string, value: string) => window.localStorage.setItem(key, value)
+	};
+
+	function refreshQueue() {
+		const items = readLearningQueue(storage);
+		queueError = items === undefined;
+		queued = new Set((items ?? []).map(({ id }) => id));
 	}
 
-	let { concepts, liveEvidence, attemptDates }: Props = $props();
+	/* One place for both listeners: this tab's event and changes from other tabs. */
+	$effect(() => {
+		const onStorage = (event: StorageEvent) => {
+			if (event.key === LEARNING_QUEUE_KEY || event.key === null) refreshQueue();
+		};
+		refreshQueue();
+		ready = true;
+		window.addEventListener(LEARNING_QUEUE_EVENT, refreshQueue);
+		window.addEventListener('storage', onStorage);
+		return () => {
+			window.removeEventListener(LEARNING_QUEUE_EVENT, refreshQueue);
+			window.removeEventListener('storage', onStorage);
+		};
+	});
 
-	const dateFormat = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long' });
-
-	function attemptDate(concept: ActivityConcept): string | undefined {
-		if (!('attemptId' in concept)) return undefined;
-		const recordedAt = attemptDates.get(concept.attemptId);
-		return recordedAt ? dateFormat.format(new Date(recordedAt)) : undefined;
-	}
-
-	function freshCopy(fresh: LearningEvidence): string {
-		const date = dateFormat.format(new Date(fresh.recordedAt));
-		return `Neuer Beleg vom ${date} · ${evidenceKindLabel[fresh.kind]} · ${helpLevelLabels[fresh.helpLevel]}. Die Einordnung folgt beim nächsten Abgleich.`;
+	function toggle(conceptId: string, topic: (typeof activityQueueTopics)[string]) {
+		const items = toggleLearningQueue(storage, window, {
+			id: `activity:${conceptId}`,
+			...topic
+		});
+		if (!items) queueError = true;
 	}
 </script>
 
-<section class="learning" data-section-id="concepts" aria-labelledby="concepts">
-	<h2 id="concepts" class="type-label">Lernstand</h2>
-	<ReadAloud.Segment as="p" class="activity-note">
-		{activityMirrorNotes.thresholds}
-	</ReadAloud.Segment>
-	<ol class="activity-rows" role="list">
-		{#each concepts as concept, index (concept.conceptId)}
-			{@const status = activityStatusCopy[concept.status]}
-			{@const fresh = liveEvidence.find((item) => item.learningGoalId === concept.learningGoalId)}
-			{@const date = attemptDate(concept)}
-			{@const criterion =
-				'criterion' in concept ? speakRichText(concept.criterion) : status.explanation}
-			{@const update = fresh ? freshCopy(fresh) : undefined}
-			<ReadAloud.Segment
-				as="li"
-				say={[concept.label, status.label, date, criterion, update].filter(Boolean).join('. ')}
-			>
-				<details>
-					<summary class="activity-row">
-						<span class="activity-row-number type-meta" aria-hidden="true">
-							{String(index + 1).padStart(2, '0')}
-						</span>
-						<span>
-							<span class="activity-row-title type-title">{concept.label}</span>
-							<span class="activity-row-meta type-meta">
-								{status.label}{#if update}
-									· Neuer Beleg{/if}
-							</span>
-						</span>
-						<span class="activity-row-arrow" aria-hidden="true"><Icon name="arrow-right" /></span>
-					</summary>
-					<div class="activity-row-detail">
-						{#if 'criterion' in concept}
-							{#if date}<p class="type-meta">{date}</p>{/if}
-							<p><RichText text={concept.criterion} /></p>
-						{:else}
-							<p>{status.explanation}</p>
-						{/if}
-						{#if update}<p>{update}</p>{/if}
-					</div>
-				</details>
-			</ReadAloud.Segment>
+<section
+	class="learning"
+	data-section-id="concepts"
+	data-section-title="Lernstand"
+	aria-labelledby="concepts"
+>
+	<h2 id="concepts" class="type-title">Lernstand</h2>
+	<ul role="list">
+		{#each concepts as concept (concept.conceptId)}
+			{@const status = resolveConceptStatus(concept, liveEvidence, mode)}
+			{@const label =
+				status === 'eingereicht_ungeprueft'
+					? 'Eingereicht, noch ungeprüft'
+					: activityStatusCopy[status].label}
+			{@const topic = activityQueueTopics[concept.conceptId]}
+			{@const selected = queued.has(`activity:${concept.conceptId}`)}
+			<li>
+				<ReadAloud.Segment say="{concept.label}. {label}.">
+					<span>{concept.label}</span>
+				</ReadAloud.Segment>
+				<StatusSignal status={signals[status]} {label} />
+				<!-- Live, a topic that leads to a locked Modul-2 task (AP6) offers no queue button. -->
+				{#if topic && routeOpensInMode(topic.route, mode)}
+					<IconButton
+						icon={selected ? 'check' : 'plus'}
+						label="{concept.label} zur Lernliste"
+						active={selected}
+						disabled={!ready}
+						onclick={() => toggle(concept.conceptId, topic)}
+					/>
+				{/if}
+			</li>
 		{/each}
-	</ol>
+	</ul>
+	{#if queueError}<p role="status" class="type-meta">
+			Lernliste konnte nicht gespeichert werden.
+		</p>{/if}
 </section>
 
 <style>
 	.learning {
 		min-inline-size: 0;
-		padding: var(--gutter);
+	}
+
+	h2 {
+		margin: 0 0 var(--space-s);
+	}
+
+	ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	li {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) max-content var(--hit);
+		align-items: center;
+		gap: var(--space-s);
+		min-block-size: var(--row);
+		padding: var(--space-s) 0;
+		border-block-end: var(--hairline-width) solid var(--well);
+		font-size: var(--type-body);
+		line-height: var(--line-title);
+		overflow-wrap: anywhere;
 	}
 </style>

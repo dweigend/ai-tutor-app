@@ -9,7 +9,7 @@
 	import { fromSnapshot } from '$lib/components/whiteboard/strokes';
 	import { tutorScenarios } from '$lib/content/tutor';
 	import { exerciseForTask } from '$lib/content/uebungen';
-	import { Icon, SurfaceShell } from '$lib/modules';
+	import { IconButton } from '$lib/modules';
 
 	const tutorApp = getTutorAppContext();
 	let board = $state<ReturnType<typeof Whiteboard>>();
@@ -64,16 +64,12 @@
 	<Whiteboard bind:this={board} client={tutorApp.client} {task}>
 		{#snippet top()}
 			{#if returnTask || returnScenario}
-				<button
-					type="button"
-					class="m-icon-button"
-					aria-label={returnTask ? 'Schließen, zurück zur Aufgabe' : 'Schließen, zurück zum Tutor'}
+				<IconButton
+					icon="arrow-left"
+					label={returnTask ? 'Zurück zur Aufgabe' : 'Zurück zum Tutor'}
 					onclick={leave}
-				>
-					<Icon name="close" />
-				</button>
+				/>
 			{/if}
-			<SurfaceShell.Grid href={resolve('/')} />
 		{/snippet}
 	</Whiteboard>
 {/key}

@@ -17,13 +17,24 @@ const {
 	choiceAnswerText,
 	choiceVoice,
 	commitRoute,
+	confidenceFigure,
 	confidenceModeForHeight,
 	digitsComplete,
+	attemptResult,
 	emptyAnswer,
+	exerciseIcon,
 	exerciseScreen,
+	liveAnswer,
+	findingOf,
+	isReceivedOnly,
 	linesText,
+	RECEIVED_WORD,
+	revealStatus,
 	stageOf,
-	stageProblems
+	stageProblems,
+	openableTaskId,
+	routeOpensInMode,
+	visibleInMode
 } = await import('./stage-model.js');
 const { exerciseForTask, exercises } = await import('../../content/uebungen.js');
 const { ScreenContextStore } = await import('../../memory/screen-context.js');
@@ -184,5 +195,93 @@ test('exercise links accept known and legacy IDs and reject unknown and inherite
 	);
 	for (const id of [null, 'unknown', '__proto__', 'constructor', 'toString']) {
 		assert.equal(exerciseForTask(id), undefined);
+	}
+});
+
+test('the fourth evidence state is received, never partial and never a match', () => {
+	assert.equal(findingOf('korrekt'), 'match');
+	assert.equal(findingOf('teilweise'), 'partial');
+	assert.equal(findingOf('falsch'), 'deviates');
+	assert.equal(findingOf('nicht_pruefbar_oder_alternativweg'), null);
+	assert.equal(revealStatus('nicht_pruefbar_oder_alternativweg'), 'received');
+	assert.notEqual(revealStatus('nicht_pruefbar_oder_alternativweg'), 'partial');
+	assert.notEqual(revealStatus('nicht_pruefbar_oder_alternativweg'), 'match');
+	assert.equal(isReceivedOnly('nicht_pruefbar_oder_alternativweg'), true);
+	for (const result of ['korrekt', 'teilweise', 'falsch'] as const) {
+		assert.equal(isReceivedOnly(result), false);
+	}
+	assert.equal(RECEIVED_WORD, 'Eingereicht');
+});
+
+test('the confidence beside the answer is a figure only, no helper words', () => {
+	assert.equal(confidenceFigure(75), '75 %');
+	assert.equal(confidenceFigure(null), undefined);
+	assert.equal(confidenceFigure(undefined), undefined);
+});
+
+test('a sent evidence level decides the reveal, a received attempt stays neutral', () => {
+	assert.equal(attemptResult({ result: 'teilweise' }), 'teilweise');
+	const received = attemptResult({
+		result: 'teilweise',
+		evidenceLevel: 'nicht_pruefbar_oder_alternativweg'
+	});
+	assert.equal(received, 'nicht_pruefbar_oder_alternativweg');
+	assert.equal(revealStatus(received), 'received');
+	assert.equal(attemptResult({ result: 'korrekt', evidenceLevel: 'teilwissen' }), 'teilweise');
+});
+
+test('live mode hides the locked Modul-2 test split, the demo shows all nine', () => {
+	const ids = exercises.map((exercise) => exercise.task.taskId);
+	assert.equal(ids.filter((id) => visibleInMode(id, 'mock')).length, 9);
+	const live = ids.filter((id) => visibleInMode(id, 'http'));
+	assert.ok(live.every((id) => !id.startsWith('a-gd-')));
+	assert.ok(live.length < 9);
+});
+
+test('live code-lines task sends text, the demo keeps the choice', () => {
+	const choice = { kind: 'choice' as const, optionIds: ['ungleich'] };
+	const parts = { lines: ['z6', 'z5'], choice: 'a · b' };
+	assert.deepEqual(liveAnswer('a-bp-ki-backward-pruefen', 'mock', choice, parts), choice);
+	assert.deepEqual(liveAnswer('a-akkumulator-vorhersagen', 'http', choice, parts), choice);
+	assert.deepEqual(liveAnswer('a-bp-ki-backward-pruefen', 'http', choice, parts), {
+		kind: 'text',
+		text: 'Zeilen 5 · 6 · Tests: a · b'
+	});
+});
+
+test('every list card has a format sign', () => {
+	const icons = new Set(exercises.map((exercise) => exerciseIcon(exercise)));
+	assert.ok(icons.has('pen'));
+	assert.ok(icons.has('grid'));
+	assert.ok(icons.size >= 3);
+});
+
+test('AP6 guards both exercise link parameters and queue routes in live mode', () => {
+	for (const key of ['task', 'aufgabe']) {
+		for (const exercise of exercises) {
+			const id = exercise.task.taskId;
+			const params = new URLSearchParams({ [key]: id });
+			const route = '/uebungen?' + params;
+			const allowed = !id.startsWith('a-gd-');
+			assert.equal(openableTaskId(params, 'http'), allowed ? id : null);
+			assert.equal(routeOpensInMode(route, 'http'), allowed);
+			assert.equal(openableTaskId(params, 'mock'), id);
+			assert.equal(routeOpensInMode(route, 'mock'), true);
+		}
+	}
+});
+
+test('live accumulator prediction submits printed lines, while the demo submits the choice', () => {
+	for (const [id, text] of [
+		['a9-b4', '9\n4'],
+		['a9-b9', '9\n9']
+	]) {
+		const choice = { kind: 'choice' as const, optionIds: [id] };
+		const parts = { lines: [], choice: '' };
+		assert.deepEqual(liveAnswer('a-akkumulator-vorhersagen', 'http', choice, parts), {
+			kind: 'text',
+			text
+		});
+		assert.deepEqual(liveAnswer('a-akkumulator-vorhersagen', 'mock', choice, parts), choice);
 	}
 });

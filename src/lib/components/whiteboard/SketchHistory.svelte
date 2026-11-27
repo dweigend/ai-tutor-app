@@ -60,7 +60,7 @@
 		<Dialog.Content class="sketch-sheet" data-surface="white">
 			<div class="sheet-head" data-row>
 				<Dialog.Title class="m-label sheet-title">
-					Verlauf [{String(sketches.length).padStart(2, '0')}]
+					Skizzen [{String(sketches.length).padStart(2, '0')}]
 				</Dialog.Title>
 				<Dialog.Close class="m-icon-button" aria-label="Schließen">
 					<Icon name="close" />
@@ -102,7 +102,7 @@
 				{/each}
 			</ul>
 			{#if !stored}
-				<p class="sheet-note">Nur für diesen Besuch gespeichert.</p>
+				<p class="sheet-note">Nur temporär gespeichert.</p>
 			{/if}
 			<button type="button" class="m-hit m-key m-keyword sheet-export" onclick={onexport}>
 				Exportieren

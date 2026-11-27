@@ -1,90 +1,103 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Icon, SurfaceShell, SwipeRow } from '$lib/modules';
+	import { getTutorAppContext } from '$lib/api/context.svelte';
+	import { Icon, PageHead, SurfaceShell, SwipeRow } from '$lib/modules';
 	import { exerciseHref, openExercises } from './course';
 	import { practice, resetPractice, settleSwipe, swiped, unswiped } from './practice.svelte';
-	import { listTitle } from './stage-model';
+	import { exerciseIcon, listTitle, visibleInMode } from './stage-model';
 
 	let { swipeable = true }: { swipeable?: boolean } = $props();
 
 	const listHref = resolve('/uebungen');
-	let remaining = $derived(openExercises(practice.done));
-	let visible = $derived(openExercises(practice.done, practice.hidden, practice.later));
-	let heading = $state<HTMLHeadingElement>();
+	const tutorApp = getTutorAppContext();
+	/* Live, the locked Modul-2 test split stays out of the list (AP6); the demo shows all nine. */
+	const inMode = ({ exercise }: { exercise: { task: { taskId: string } } }) =>
+		visibleInMode(exercise.task.taskId, tutorApp.config.mode);
+	let remaining = $derived(openExercises(practice.done).filter(inMode));
+	let visible = $derived(
+		openExercises(practice.done, practice.hidden, practice.later).filter(inMode)
+	);
+	let page = $state<HTMLElement>();
+
+	/* Cards take turns in a small, fixed set of grounds (reference R6); the exercise orange leads. */
+	const TONES: readonly SurfaceShell.Surface[] = ['orange', 'yellow', 'white', 'ink'];
 
 	$effect(() => () => settleSwipe());
 
+	function focusHeading() {
+		const heading = page?.querySelector<HTMLHeadingElement>('h1');
+		if (!heading) return;
+		heading.tabIndex = -1;
+		heading.focus();
+	}
+
 	function restart() {
 		resetPractice();
-		heading?.focus();
+		focusHeading();
 	}
 
 	function restoreHidden() {
 		practice.hidden = [];
-		heading?.focus();
+		focusHeading();
 	}
 </script>
 
-<SurfaceShell.Root tone="orange">
-	<div class="exercise-list">
-		<header class="list-head">
-			<div class="list-top">
-				<span class="m-label">Übungen</span>
-				<SurfaceShell.Grid href={resolve('/')} />
-			</div>
-			<h1 bind:this={heading} tabindex="-1">Neun Versuche am Modell</h1>
-		</header>
+<SurfaceShell.Root tone="paper">
+	<div class="exercise-page" bind:this={page}>
+		<PageHead accent="exercise" title="Übungen" />
 
-		{#if visible.length}
-			<ol class="exercise-rows" role="list" aria-label="Offene Aufgaben">
-				{#each visible as { exercise, number } (`${exercise.task.taskId}:${practice.generations[exercise.task.taskId] ?? 0}`)}
-					{@const id = exercise.task.taskId}
-					{@const title = listTitle(exercise)}
-					{#snippet row()}
-						<a class="exercise-row" href={exerciseHref(listHref, id)}>
-							<span class="exercise-number" aria-hidden="true">
-								{String(number).padStart(2, '0')}
-							</span>
-							<span>
-								<span class="exercise-title">{title}</span>
-								<span class="exercise-meta">
-									{exercise.subtitle} <span class="exercise-time">· {exercise.minutes} min</span>
+		<div class="exercise-list">
+			{#if visible.length}
+				<!--
+					Stacked cards (R6): each card overlaps the rounded foot of the one before. The whole card
+					is the link; no numbers, no arrow keys.
+				-->
+				<ol class="exercise-cards" role="list" aria-label="Offene Aufgaben">
+					{#each visible as { exercise }, index (`${exercise.task.taskId}:${practice.generations[exercise.task.taskId] ?? 0}`)}
+						{@const id = exercise.task.taskId}
+						{@const title = listTitle(exercise)}
+						{#snippet card()}
+							<a class="exercise-card" href={exerciseHref(listHref, id)}>
+								<span class="exercise-sign" aria-hidden="true">
+									<Icon name={exerciseIcon(exercise)} size={20} />
 								</span>
-							</span>
-							<span class="exercise-arrow" aria-hidden="true"><Icon name="arrow-right" /></span>
-						</a>
-					{/snippet}
-					<li>
-						{#if swipeable}
-							<SwipeRow
-								flush
-								name={title}
-								onaction={(action) => swiped(id, action)}
-								onundo={() => unswiped(id)}
-							>
-								{@render row()}
-							</SwipeRow>
-						{:else}
-							{@render row()}
-						{/if}
-					</li>
-				{/each}
-			</ol>
-		{:else}
-			<div class="exercise-empty">
-				{#if remaining.length === 0}
-					<p>Alle neun Übungen sind erledigt.</p>
-					<button class="m-hit m-key list-action" type="button" onclick={restart}>
-						Erneut üben
-					</button>
-				{:else}
-					<p>Die offenen Übungen sind ausgeblendet.</p>
-					<button class="m-hit m-key list-action" type="button" onclick={restoreHidden}>
-						Übungen einblenden
-					</button>
-				{/if}
-			</div>
-		{/if}
+								<span class="exercise-meta">{exercise.subtitle}</span>
+								<span class="exercise-title">{title}</span>
+								<span class="exercise-time">{exercise.minutes} min</span>
+							</a>
+						{/snippet}
+						<li data-surface={TONES[index % TONES.length]}>
+							{#if swipeable}
+								<SwipeRow
+									flush
+									name={title}
+									onaction={(action) => swiped(id, action)}
+									onundo={() => unswiped(id)}
+								>
+									{@render card()}
+								</SwipeRow>
+							{:else}
+								{@render card()}
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			{:else}
+				<div class="exercise-empty">
+					{#if remaining.length === 0}
+						<p>Alles erledigt.</p>
+						<button class="m-hit m-key list-action" type="button" onclick={restart}>
+							Nochmal von vorn
+						</button>
+					{:else}
+						<p>Alle offenen Aufgaben sind ausgeblendet.</p>
+						<button class="m-hit m-key list-action" type="button" onclick={restoreHidden}>
+							Einblenden
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	</div>
 </SurfaceShell.Root>
 
@@ -92,99 +105,126 @@
 	.exercise-list {
 		max-inline-size: calc(var(--exercise-rail) + 2 * var(--gutter));
 		margin-inline: auto;
-		padding-inline: var(--gutter);
-		padding-bottom: 96px;
+		padding: var(--space-m) var(--gutter) var(--duck-clearance);
 	}
 
-	.list-head {
-		padding-block: var(--space-s) var(--space-m);
-	}
-
-	.list-top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	h1 {
-		margin: var(--space-m) 0 0;
-		font-size: var(--type-head);
-		line-height: var(--line-head);
-		font-weight: var(--font-weight-light);
-		text-transform: uppercase;
-	}
-
-	h1:focus {
+	.exercise-page :global(h1:focus) {
 		outline: none;
 	}
 
-	.exercise-rows {
+	.exercise-cards {
+		display: grid;
 		margin: 0;
 		padding: 0;
-		border-block-end: var(--hairline-width) solid var(--hairline);
 		list-style: none;
 	}
 
-	.exercise-rows li {
-		border-block-start: var(--hairline-width) solid var(--hairline);
+	/* A card covers the rounded foot of the card before it; later cards lie on top. */
+	.exercise-cards li {
+		position: relative;
+		background: transparent;
 	}
 
-	.exercise-row {
+	.exercise-cards li + li {
+		margin-block-start: calc(-1 * var(--radius-option));
+	}
+
+	.exercise-cards li:focus-within {
+		z-index: 1;
+	}
+
+	.exercise-cards li :global(.swipe-track) {
+		border-radius: var(--radius-option);
+	}
+
+	.exercise-cards li :global(.swipe-row .swipe-cell) {
+		background: transparent;
+	}
+
+	.exercise-cards :global(.swipe-undo) {
+		border-radius: var(--radius-option);
+		padding-block-end: var(--radius-option);
+	}
+
+	.exercise-card {
 		display: grid;
-		grid-template-columns: minmax(0, 2.5rem) minmax(0, 1fr) var(--arrow-circle-size);
-		align-items: center;
-		gap: var(--space-s);
-		min-block-size: var(--row);
-		padding-block: var(--space-s);
-		color: inherit;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: var(--step-1);
+		min-block-size: calc(7rem + var(--radius-option));
+		padding: var(--space-m) var(--space-m) calc(var(--space-m) + var(--radius-option));
+		border-radius: var(--radius-option);
+		background: var(--surface);
+		color: var(--text);
 		text-decoration: none;
 		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.exercise-row:focus-visible {
-		outline: var(--focus-width) solid var(--focus);
-		outline-offset: calc(-1 * var(--focus-width));
+	.exercise-cards li:last-child .exercise-card {
+		min-block-size: 7rem;
+		padding-block-end: var(--space-m);
 	}
 
-	.exercise-title,
-	.exercise-meta {
-		display: block;
+	.exercise-cards li:last-child :global(.swipe-undo) {
+		padding-block-end: 0;
 	}
 
-	.exercise-title {
-		font-size: var(--type-title);
-		line-height: var(--line-title);
-		font-weight: var(--font-weight-regular);
-		overflow-wrap: anywhere;
+	.exercise-card:focus-visible {
+		outline: var(--focus-width) solid var(--text);
+		outline-offset: calc(-2 * var(--focus-width));
 	}
 
-	.exercise-number,
-	.exercise-meta {
-		font-size: var(--type-meta);
-		line-height: var(--line-meta);
-		font-variant-numeric: tabular-nums;
+	.exercise-card:active {
+		background: var(--action);
+		color: var(--action-text);
 	}
 
-	.exercise-time {
-		white-space: nowrap;
-	}
-
-	.exercise-arrow {
+	/* Format sign (R6): one quiet stroke icon in a ring, top right, in the card's own ink. */
+	.exercise-sign {
 		display: grid;
+		grid-row: 1 / span 2;
+		grid-column: 2;
 		place-items: center;
-		inline-size: var(--arrow-circle-size);
-		block-size: var(--arrow-circle-size);
+		inline-size: 2.5rem;
+		block-size: 2.5rem;
 		border: var(--hairline-width) solid currentColor;
 		border-radius: 50%;
 	}
 
-	.exercise-row:active .exercise-arrow {
-		color: var(--action-text);
-		background: var(--action);
+	.exercise-meta,
+	.exercise-title,
+	.exercise-time {
+		grid-column: 1;
+	}
+
+	.exercise-meta,
+	.exercise-time {
+		font-size: var(--type-meta);
+		line-height: var(--line-meta);
+	}
+
+	.exercise-title {
+		font-size: var(--type-question);
+		line-height: var(--line-question);
+		font-weight: var(--font-weight-regular);
+		letter-spacing: var(--letter-question);
+		overflow-wrap: anywhere;
+	}
+
+	.exercise-time {
+		align-self: end;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.exercise-empty {
-		border-block-start: var(--hairline-width) solid var(--hairline);
+		display: grid;
+		justify-items: start;
+		gap: var(--space-s);
+	}
+
+	.exercise-empty p {
+		margin: 0;
 	}
 
 	.list-action {

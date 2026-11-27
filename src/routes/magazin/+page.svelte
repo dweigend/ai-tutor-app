@@ -8,7 +8,8 @@
 	import { youtubeMagazineEntries, type YoutubeMagazineEntry } from '$lib/content/magazin';
 	import YouTubeCard from '$lib/components/magazin/YouTubeCard.svelte';
 	import MagazinShell from '$lib/components/magazin/MagazinShell.svelte';
-	import Opener from '$lib/components/magazin/Opener.svelte';
+	import MediaCard from '$lib/components/magazin/MediaCard.svelte';
+	import MotifPicture from '$lib/components/magazin/MotifPicture.svelte';
 	import {
 		findEntry,
 		magazinEntries,
@@ -16,7 +17,6 @@
 		type MagazinEntry
 	} from '$lib/components/magazin/article';
 	import { episodeMinutes, essayFormLabel } from '$lib/components/magazin/labels';
-	import { Raster, type Slab } from '$lib/modules';
 
 	/*
 	 * Today's lead (local calendar day). Prerendered HTML and hydration both show the first entry,
@@ -34,6 +34,17 @@
 		today ? orderForDay(entries, today) : { lead: entries[0], rest: entries.slice(1) }
 	);
 	let lead = $derived(order.lead);
+	let ordered = $derived([lead, ...order.rest]);
+	let groups = $derived(
+		lead.kind === 'episode' ? ['podcast', 'essays', 'videos'] : ['essays', 'podcast', 'videos']
+	);
+	const labels: Record<string, string> = {
+		essays: 'Essays',
+		podcast: 'Podcasts',
+		videos: 'Videos'
+	};
+	const podcasts = youtubeMagazineEntries.filter((entry) => entry.category === 'podcast');
+	const videos = youtubeMagazineEntries.filter((entry) => entry.category === 'video');
 
 	function href(entry: MagazinEntry): string {
 		return resolve('/magazin/[slug]', { slug: entry.item.id });
@@ -45,27 +56,6 @@
 			: `${essayFormLabel[entry.item.editorialStyle]} · ${entry.item.readingMinutes} min`;
 	}
 
-	/* Under the rubric PODCAST a row says only `19 min`; essays keep their form (art direction K6). */
-	function rowMeta(entry: MagazinEntry): string {
-		return entry.kind === 'episode' ? `${episodeMinutes(entry.item)} min` : meta(entry);
-	}
-
-	function slab(entry: MagazinEntry): Slab {
-		return {
-			id: entry.item.id,
-			href: href(entry),
-			title: entry.item.question,
-			meta: rowMeta(entry)
-		};
-	}
-
-	let articleSlabs = $derived(order.rest.filter((entry) => entry.kind === 'article').map(slab));
-	let episodeSlabs = $derived(order.rest.filter((entry) => entry.kind === 'episode').map(slab));
-
-	const mediaGroups = [
-		{ id: 'videos', title: 'Videos auf YouTube', category: 'video' },
-		{ id: 'podcasts-auf-youtube', title: 'Podcasts auf YouTube', category: 'podcast' }
-	] as const;
 	const mediaMotifs: Record<string, MotifId> = {
 		'gradient-descent-3b1b': 'home-lernraten',
 		'backpropagation-intuition-3b1b': 'home-schaltwerk',
@@ -119,109 +109,114 @@
 	<meta name="tutor-magazin-startup" content={String(entries.length)} />
 </svelte:head>
 
-<MagazinShell tone={lead.item.tone} title="Magazin | Tutor">
-	<Opener
-		tone={lead.item.tone}
-		question={lead.item.question}
-		art={lead.item.art}
-		line={meta(lead)}
-		href={href(lead)}
-		icon={lead.kind === 'episode' ? 'play' : 'book'}
-		action={lead.kind === 'episode' ? 'Hören' : 'Lesen'}
-	>
-		<p class="lead-teaser">{lead.item.teaser}</p>
-	</Opener>
-
-	<!-- Targets of the old hash links; the effect above opens the entry's own page. -->
-	<div hidden>
-		{#each entries as entry (entry.item.id)}<span id={entry.item.id}></span>{/each}
-	</div>
-
-	<div class="magazin-raster" data-surface="paper">
-		{#if articleSlabs.length}
-			<h2 class="m-label magazin-raster-title">Essays</h2>
-			<Raster.SlabList items={articleSlabs} label="Essays" />
-		{/if}
-		{#if episodeSlabs.length}
-			<h2 class="m-label magazin-raster-title" id="podcast" tabindex="-1">Eigene Podcasts</h2>
-			<Raster.SlabList items={episodeSlabs} label="Eigene Podcasts" />
-		{/if}
-		{#each mediaGroups as group (group.id)}
-			<section class="media-section" aria-labelledby={group.id}>
-				<h2 class="media-title" id={group.id}>{group.title}</h2>
-				<div class="media-grid">
-					{#each youtubeMagazineEntries.filter((entry) => entry.category === group.category) as entry (entry.id)}
-						<YouTubeCard
-							{entry}
-							motif={mediaMotifs[entry.id] ?? 'magazin'}
-							playing={activeVideo === entry.videoId}
-							onplay={() => play(entry)}
-						/>
-					{/each}
-				</div>
-			</section>
-		{/each}
-	</div>
+<MagazinShell title="Magazin">
+	<!-- Rebuild the rails once on the daily swap so snap starts at the new first card. -->
+	{#key lead.item.id}
+		<div class="library">
+			{#each groups as group (group)}
+				<section aria-labelledby={group}>
+					<h2 class="type-title" id={group} tabindex="-1">{labels[group]}</h2>
+					<div class="media-grid" data-group={group}>
+						{#if group !== 'videos'}
+							{#each ordered.filter((entry) => entry.kind === (group === 'podcast' ? 'episode' : 'article')) as entry (entry.item.id)}
+								<MediaCard title={entry.item.question} meta={meta(entry)} href={href(entry)}>
+									{#snippet media()}
+										<MotifPicture art={entry.item.art} priority={entry === lead} decorative />
+									{/snippet}
+									<p class="teaser">{entry.item.teaser}</p>
+								</MediaCard>
+							{/each}
+						{/if}
+						{#if group === 'podcast' || group === 'videos'}
+							{#each group === 'podcast' ? podcasts : videos as entry, index (entry.id)}
+								<YouTubeCard
+									{entry}
+									sectionId={group === 'podcast' && index === 0
+										? 'podcasts-auf-youtube'
+										: undefined}
+									motif={mediaMotifs[entry.id] ?? 'magazin'}
+									playing={activeVideo === entry.videoId}
+									onplay={() => play(entry)}
+								/>
+							{/each}
+						{/if}
+					</div>
+				</section>
+			{/each}
+		</div>
+	{/key}
 </MagazinShell>
 
 <style>
-	/* The teaser stands in full, never clamped (DESIGN.md §10.1). */
-	.lead-teaser {
-		margin: 0;
-		padding-inline: var(--gutter);
-		font-size: var(--type-body);
-		line-height: var(--line-body);
-	}
-
-	.magazin-raster {
-		padding-bottom: 96px;
-	}
-
-	/* Rubric and rows keep the opener's column, so one left edge runs down the page. */
-	.magazin-raster-title,
-	.magazin-raster :global(.raster) {
-		max-inline-size: 40rem;
+	.library {
+		max-inline-size: var(--content-width);
 		margin-inline: auto;
+		display: grid;
+		gap: var(--space-l);
+		padding-block: var(--space-m) var(--space-l);
 	}
 
-	.magazin-raster-title {
-		display: flex;
-		align-items: center;
-		block-size: var(--bar);
+	section {
+		min-inline-size: 0;
+	}
+
+	h2 {
+		margin: 0 0 var(--space-m);
 		padding-inline: var(--gutter);
 		scroll-margin-block-start: var(--bar);
 	}
 
-	.magazin-raster-title:focus {
-		outline: none;
-	}
-
-	/* A row is at least 64px and grows with its title, which never touches the joint. */
-	.magazin-raster :global(:is(.raster-item, .slab)) {
-		block-size: auto;
-		min-block-size: var(--row);
-	}
-
-	.magazin-raster :global(.slab) {
-		padding-block: var(--space-s);
-	}
-
-	.media-section {
-		max-inline-size: 72rem;
-		margin-inline: auto;
-		padding: var(--step-6) var(--gutter) 0;
-	}
-
-	.media-title {
-		margin: 0 0 var(--step-4);
-		font-size: var(--type-head);
-		font-weight: var(--font-weight-strong);
-		scroll-margin-block-start: calc(var(--bar) + var(--step-3));
-	}
-
 	.media-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
-		gap: var(--step-5);
+		grid-auto-flow: column;
+		grid-auto-columns: 80%;
+		align-items: start;
+		gap: var(--space-m);
+		overflow-x: auto;
+		overscroll-behavior-inline: contain;
+		scroll-snap-type: x mandatory;
+		scrollbar-width: thin;
+	}
+
+	.teaser {
+		margin: 0;
+		color: var(--text-muted);
+		font-size: var(--type-meta);
+		line-height: var(--line-meta);
+	}
+
+	@media (min-width: 40rem) {
+		.media-grid {
+			grid-auto-columns: calc((100% - var(--space-m)) / 2);
+		}
+	}
+
+	@media (min-width: 54rem) {
+		.library {
+			padding-inline: var(--gutter);
+		}
+
+		h2 {
+			padding-inline: 0;
+		}
+
+		.media-grid {
+			grid-auto-flow: row;
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			align-items: stretch;
+			overflow: visible;
+		}
+
+		.media-grid > :global(article) {
+			grid-column: span 4;
+		}
+
+		.media-grid[data-group='podcast'] > :global(article:nth-child(n + 4)) {
+			grid-column: span 6;
+		}
+
+		.media-grid[data-group='videos'] > :global(article:nth-child(n + 4)) {
+			grid-column: span 3;
+		}
 	}
 </style>

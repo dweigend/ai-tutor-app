@@ -4,7 +4,7 @@ import { exerciseForTask } from '../content/uebungen.js';
 import type { ScreenContext, ScreenContextInput } from './types.js';
 
 export const INDEPENDENT_PROBE_HELP =
-	'In dieser Probe arbeitest du eigenständig. Sobald du sie abschließt oder bewusst verlässt, können wir fachlich weiterarbeiten.';
+	'Hier arbeitest du eigenständig – kein Problem. Sobald du sie abschließt oder bewusst verlässt, bin ich wieder da.';
 
 export function createScreenContext(
 	input: ScreenContextInput,

@@ -57,3 +57,72 @@ export const attentionOccurrences = [
 export function termPills(terms: readonly AttentionTermId[] = []): AttentionTermId[] {
 	return attentionOccurrences.filter((termId) => terms.includes(termId));
 }
+
+/** The five terms the 3D attention deck knows (`AttentionTerm` of the figure library). */
+export type DeckTerm = 'Q' | 'K' | 'V' | 'dk' | 'softmax';
+
+/** Deck terms name the same things as the help terms above. */
+export const deckTermIds = {
+	Q: 'Q',
+	K: 'KT',
+	V: 'V',
+	dk: 'sqrt-dk',
+	softmax: 'softmax'
+} as const satisfies Record<DeckTerm, AttentionTermId>;
+
+export interface AttentionBubble {
+	term: DeckTerm;
+	/** What stands on the bubble, in RichText notation (`d_{k}`). */
+	label: string;
+	spoken: string;
+	/** The short meaning on its slot. */
+	meaning: string;
+	/** Shown after a wrong drop: points back into the formula, never gives a verdict. */
+	hint: string;
+}
+
+/** Bubbles of the matching slide, in the order they stand on the left. */
+export const attentionBubbles: readonly AttentionBubble[] = [
+	{
+		term: 'Q',
+		label: 'Q',
+		spoken: attentionTerms.Q.spoken,
+		meaning: 'Was ein Wort sucht',
+		hint: 'Noch nicht – Q stellt die Suchanfrage.'
+	},
+	{
+		term: 'K',
+		label: 'K',
+		spoken: 'Keys K',
+		meaning: 'Was jedes Wort anbietet',
+		hint: 'Noch nicht – K ist das Etikett jedes Worts.'
+	},
+	{
+		term: 'V',
+		label: 'V',
+		spoken: attentionTerms.V.spoken,
+		meaning: 'Inhalt, der gemischt wird',
+		hint: 'Noch nicht – V liefert am Ende den Inhalt.'
+	},
+	{
+		term: 'dk',
+		label: '√d_{k}',
+		spoken: attentionTerms['sqrt-dk'].spoken,
+		meaning: 'Bremst zu große Werte',
+		hint: 'Noch nicht – die Wurzel teilt unter dem Bruchstrich.'
+	},
+	{
+		term: 'softmax',
+		// σ is the short sign of the softmax, so all five bubbles are circles of one size.
+		label: 'σ',
+		spoken: attentionTerms.softmax.spoken,
+		meaning: 'Normiert alles auf 100\u00a0%',
+		hint: 'Noch nicht – σ, die Softmax, normiert die Klammer auf 1.'
+	}
+];
+
+/** Slots on the right stand in another order, so no bubble faces its own meaning. */
+export const attentionSlotOrder: readonly DeckTerm[] = ['V', 'softmax', 'dk', 'K', 'Q'];
+
+/** Attention formula with every deck term marked for highlighting (KaTeX `\htmlData`). */
+export const attentionDeckLatex = String.raw`\operatorname{Attention}(\htmlData{term=Q}{Q}, \htmlData{term=K}{K}, \htmlData{term=V}{V}) = \htmlData{term=softmax}{\operatorname{softmax}}\!\left(\frac{\htmlData{term=Q}{Q}\,\htmlData{term=K}{K^{\mathsf{T}}}}{\htmlData{term=dk}{\sqrt{d_k}}}\right) \htmlData{term=V}{V}`;

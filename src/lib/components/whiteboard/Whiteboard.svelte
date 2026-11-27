@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { screenContext } from '$lib/memory/runtime.svelte';
 	import { untrack, type Snippet } from 'svelte';
-	import { MockTutorClient } from '$lib/api/mock';
 	import type { TaskRef, TutorApiClient, WhiteboardSnapshot } from '$lib/api/types';
 	import { tutorScenarios } from '$lib/content/tutor';
 	import { nextChallenge, type WhiteboardChallenge } from '$lib/content/whiteboard-challenges';
-	import { BoardCanvas } from '$lib/modules';
+	import { BoardCanvas, PageHead, BottomBar, IconButton } from '$lib/modules';
 	import SketchHistory from './SketchHistory.svelte';
 	import ToolMenu, { type ToolAction } from './ToolMenu.svelte';
 	import TutorLine from './TutorLine.svelte';
@@ -85,8 +84,7 @@
 		if (!edit) return;
 		history = edit.history;
 		commit(edit.strokes);
-		status =
-			direction === 'undo' ? 'Letzter Schritt zurückgenommen.' : 'Schritt wiederhergestellt.';
+		status = direction === 'undo' ? 'Zurück.' : 'Wiederhergestellt.';
 	}
 
 	function replace(next: Stroke[], message: string) {
@@ -101,7 +99,7 @@
 			pendingLoad = next;
 			return;
 		}
-		replace(fitStrokes(next, view), 'Skizze auf die Fläche geholt.');
+		replace(fitStrokes(next, view), 'Skizze geladen.');
 	}
 
 	/** The board as the API sees it, or null when it is empty. */
@@ -161,7 +159,7 @@
 			return;
 		}
 		persist(next);
-		status = 'Skizze im Verlauf gespeichert.';
+		status = 'Gespeichert.';
 	}
 
 	/** One click, one format: SVG (art direction V2-6, no PNG-or-SVG choice). */
@@ -176,13 +174,11 @@
 		status = `Exportiert als ${link.download}.`;
 	}
 
-	// ---- Aufbereiten ---------------------------------------------------------------------------
+	// ---- Glätten -------------------------------------------------------------------------------
 
 	async function refine() {
 		const result = await demoRefiner.refine(strokes);
-		replace(result.strokes, 'Skizze aufbereitet. Zurück holt die Handskizze.');
-		const prefix = demoRefiner.mode === 'demo' ? 'Demo · ' : '';
-		note = `${prefix}${result.pointsBefore} → ${result.pointsAfter} Punkte`;
+		replace(result.strokes, 'Linien geglättet.');
 	}
 
 	function act(action: ToolAction) {
@@ -190,7 +186,7 @@
 			case 'undo':
 				return step('undo');
 			case 'clear':
-				return replace([], 'Fläche geleert. Zurück holt die Skizze zurück.');
+				return replace([], 'Fläche geleert.');
 			case 'save':
 				return save();
 			case 'refine':
@@ -261,7 +257,7 @@
 				}
 			} catch {
 				if (own.signal.aborted) return;
-				line = { phase: 'error', text: 'Der Tutor ist gerade nicht erreichbar.', code: 'network' };
+				line = { phase: 'error', text: 'Gerade nicht erreichbar.', code: 'network' };
 				return;
 			}
 			if (next.phase === 'done') {
@@ -315,7 +311,7 @@
 
 <div
 	class="whiteboard"
-	data-surface="white"
+	data-surface="paper"
 	role="group"
 	aria-label="Whiteboard"
 	data-strokes={strokes.length}
@@ -332,19 +328,17 @@
 		onbeforechange={remember}
 		onchange={commit}
 		onlimit={() => {
-			note = `${MAX_POINTS} / ${MAX_POINTS} Punkte`;
-			status = `Grenze von ${MAX_POINTS} Punkten erreicht. Radiere oder leere die Fläche.`;
+			note = 'Fläche voll';
+			status = 'Fläche voll – radiere oder leere sie.';
 		}}
 		onstatus={(message) => (status = message)}
 		onscale={(value) => (scale = value)}
 	/>
 
 	<div class="board-top" bind:offsetHeight={topHeight}>
-		<div class="board-bar" data-row>
-			{@render top?.()}
-		</div>
+		<PageHead title="Whiteboard" accent="whiteboard" left={top} />
 		{#if challenge}
-			<p class="board-challenge" data-row>
+			<p class="board-challenge info-band" data-row>
 				<strong>{challenge.title}</strong>
 				<span aria-hidden="true">{challenge.text}</span>
 				<span class="visually-hidden">{challenge.spoken}</span>
@@ -355,7 +349,6 @@
 	{#if shown}
 		<TutorLine
 			text={shown}
-			demo={client instanceof MockTutorClient}
 			{anchorTop}
 			{anchorBottom}
 			topLimit={topHeight}
@@ -365,29 +358,22 @@
 		/>
 	{/if}
 
-	<div class="board-bottom" bind:offsetHeight={bottomHeight}>
-		<ToolMenu
-			{tool}
-			{color}
-			canUndo={history.undo.length > 0}
-			hasStrokes={strokes.length > 0}
-			onselectTool={(selected) => choose({ tool: selected })}
-			onselectColor={(selected) => choose({ color: selected })}
-			onaction={act}
-		/>
-		<p class="board-note">{note}</p>
-		{#if strokes.length}
-			<button
-				type="button"
-				class="m-hit m-label board-tutor"
-				aria-label="TUTOR: Rückfrage zur Skizze"
-				aria-busy={busy}
-				data-busy={busy || undefined}
-				onclick={ask}
-			>
-				TUTOR
-			</button>
-		{/if}
+	<div class="board-controls" bind:offsetHeight={bottomHeight}>
+		<BottomBar class="board-bottom" fixed={false}>
+			<ToolMenu
+				{tool}
+				{color}
+				canUndo={history.undo.length > 0}
+				hasStrokes={strokes.length > 0}
+				onselectTool={(selected) => choose({ tool: selected })}
+				onselectColor={(selected) => choose({ color: selected })}
+				onaction={act}
+			/>
+			<p class="board-note">{note}</p>
+			{#if strokes.length}
+				<IconButton label="Rückfrage zur Skizze" icon="duck" disabled={busy} onclick={ask} />
+			{/if}
+		</BottomBar>
 	</div>
 
 	<p class="visually-hidden" role="status">{status}</p>
@@ -400,7 +386,7 @@
 	saveMessage={saveBlocked &&
 	sketches.length === SKETCH_LIMIT &&
 	sketches.every((item) => item.kept)
-		? `Verlauf voll (${SKETCH_LIMIT} gemerkt). Gib erst einen Platz frei.`
+		? `Alle ${SKETCH_LIMIT} Plätze belegt.`
 		: undefined}
 	onload={(sketch) => load(sketch.strokes)}
 	onremove={(ids) => persist(removeSketches(sketches, ids))}
@@ -409,7 +395,6 @@
 />
 
 <style>
-	/* 100dvh × 100vw, no frame, no head block, no toolbar: the whole screen is paper to draw on. */
 	.whiteboard {
 		position: relative;
 		inline-size: 100%;
@@ -425,7 +410,7 @@
 
 	/* The overlays let the pen through; only their controls take a touch. */
 	.board-top,
-	.board-bottom {
+	.board-controls {
 		position: absolute;
 		inset-inline: 0;
 		z-index: 6;
@@ -434,24 +419,11 @@
 
 	.board-top {
 		inset-block-start: 0;
-		padding-block-start: env(safe-area-inset-top);
 	}
-
-	.board-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		block-size: var(--bar);
-		padding-inline: var(--gutter);
-	}
-
-	.board-bar :global(:is(.m-hit, .m-icon-button)) {
+	.board-top :global(a),
+	.board-top :global(button),
+	.board-controls :global([data-bottom-bar]) {
 		pointer-events: auto;
-	}
-
-	/* The last control of the bar stays at the right edge, also when it stands alone. */
-	.board-bar > :global(:last-child) {
-		margin-inline-start: auto;
 	}
 
 	.board-challenge {
@@ -465,16 +437,8 @@
 		line-height: 1.3;
 	}
 
-	/* The right corner remains available for the global duck trigger. */
-	.board-bottom {
+	.board-controls {
 		inset-block-end: 0;
-		display: flex;
-		align-items: center;
-		gap: var(--step-2);
-		block-size: calc(var(--cell) + env(safe-area-inset-bottom));
-		padding-inline-start: max(var(--gutter), env(safe-area-inset-left));
-		padding-inline-end: calc(var(--action-zone) + env(safe-area-inset-right));
-		padding-block-end: env(safe-area-inset-bottom);
 	}
 
 	.board-note {
@@ -485,18 +449,7 @@
 		font-size: var(--type-label);
 		font-variant-numeric: tabular-nums;
 		text-align: center;
-		overflow-wrap: anywhere;
-	}
-
-	.board-tutor {
-		margin-inline-start: auto;
-		padding-inline: var(--step-3);
-		pointer-events: auto;
-	}
-
-	/* While the tutor thinks, the key stays pressed: a hard switch, no dots, no shimmer. */
-	.board-tutor[data-busy] {
-		background: var(--action);
-		color: var(--action-text);
+		white-space: nowrap;
+		text-overflow: ellipsis;
 	}
 </style>

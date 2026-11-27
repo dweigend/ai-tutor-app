@@ -4,6 +4,7 @@
 	import { getTutorAppContext } from '$lib/api/context.svelte';
 	import {
 		ApiError,
+		countsAsMastery,
 		type ApiProblem,
 		type ExerciseAttemptRequest,
 		type ExerciseAttemptResponse
@@ -11,9 +12,11 @@
 	import type { EditorialExercise } from '$lib/content';
 	import { screenContext } from '$lib/memory/runtime.svelte';
 	import {
+		BottomBar,
 		Fader,
 		Fold,
 		InteractionStage as Stage,
+		PageHead,
 		Raster,
 		ReadAloud,
 		Readout,
@@ -25,34 +28,40 @@
 		type StageState
 	} from '$lib/modules';
 	import {
+		attemptResult,
 		checkLines,
 		choiceAnswerText,
 		choiceVoice,
 		commitRoute,
+		confidenceFigure,
 		confidenceModeForHeight,
 		digitsComplete,
 		emptyAnswer,
 		exerciseScreen,
-		findingOf,
 		linesText,
+		liveAnswer,
+		LOCKED_TASK_PROBLEM,
 		paragraphs,
+		RECEIVED_WORD,
+		revealStatus,
+		type RevealStatus,
 		speakHead,
 		speakOptions,
 		stageOf,
-		stageOptions
+		stageOptions,
+		visibleInMode
 	} from './stage-model';
 	import { markDone } from './practice.svelte';
+	import SketchAnswer from './SketchAnswer.svelte';
 	import ValleyComparison from './ValleyComparison.svelte';
 
 	interface Props {
 		exercise: EditorialExercise;
 		/** The list the stage was opened from; the close sign, Escape and the last "Weiter" lead there. */
 		listHref: string;
-		/** Whiteboard hand-over for sketch tasks, with the return address. */
-		whiteboardHref: string;
 	}
 
-	let { exercise, listHref, whiteboardHref }: Props = $props();
+	let { exercise, listHref }: Props = $props();
 
 	const tutorApp = getTutorAppContext();
 	// The stage is keyed by task in the route, so these are read once per exercise.
@@ -83,6 +92,8 @@
 	/** The DU line, frozen at commit time, and its voice: a sentence option reads in Archivo. */
 	let yours = $state('');
 	let yoursVoice = $state<'value' | 'sentence'>('value');
+	/** Lines picked on an earlier LinePick step; a live text answer carries them along. */
+	let pickedLines = $state<string[]>([]);
 
 	let step = $derived(allSteps[index]);
 	let instrument = $derived(step.instrument);
@@ -135,11 +146,11 @@
 	let confidenceInline = $derived(
 		phase === 'answer' && asksConfidence && confidenceMode === 'inline'
 	);
-	let ready = $derived(
-		phase === 'confidence'
-			? draft.confidence !== undefined
-			: answerReady && (!confidenceInline || draft.confidence !== undefined)
-	);
+	/*
+	 * Confidence is optional (V4-5): the slider rests in its marked middle, "ohne Angabe". Only the
+	 * answer itself unlocks "Festlegen".
+	 */
+	let ready = $derived(phase === 'confidence' || answerReady);
 	let stageState: StageState = $derived(
 		phase === 'revealed' ? 'revealed' : pending ? 'pending' : ready ? 'ready' : 'open'
 	);
@@ -186,6 +197,15 @@
 	}
 
 	function buildAnswer(): ExerciseAttemptRequest['answer'] | null {
+		const answer = apiAnswer();
+		if (!answer) return null;
+		return liveAnswer(task.taskId, tutorApp.config.mode, answer, {
+			lines: pickedLines,
+			choice: choiceAnswerText(options, draft.choice)
+		});
+	}
+
+	function apiAnswer(): ExerciseAttemptRequest['answer'] | null {
 		switch (response.answerKind) {
 			case 'choice':
 				return draft.choice.length ? { kind: 'choice', optionIds: [...draft.choice] } : null;
@@ -215,6 +235,12 @@
 		const answer = buildAnswer();
 		if (!answer || pending || phase === 'revealed') return;
 		const retryPhase = phase;
+		// A locked Modul-2 task (AP6) never reaches the live grader, even when its stage is open.
+		if (!visibleInMode(task.taskId, tutorApp.config.mode)) {
+			outcome = { kind: 'problem', retryPhase, problem: LOCKED_TASK_PROBLEM };
+			phase = 'revealed';
+			return;
+		}
 		controller?.abort();
 		controller = new AbortController();
 		const payload = { answer, confidence: draft.confidence ?? undefined };
@@ -226,7 +252,8 @@
 				controller.signal
 			);
 			outcome = { kind: 'response', response: result };
-			if (result.result === 'korrekt') {
+			// Only `korrekt` is mastery; a received sketch (fourth state) stays open in the list.
+			if (countsAsMastery(attemptResult(result))) {
 				const { courseId, courseVersion, taskId } = task;
 				tutorApp.recordPracticeProgress(`exercise:${courseId}@${courseVersion}:${taskId}`);
 				markDone(taskId);
@@ -261,6 +288,7 @@
 				return next();
 			case 'local-lines': {
 				const expected = step.localCheck?.expected ?? [];
+				pickedLines = [...draft.lines];
 				outcome = {
 					kind: 'local',
 					finding: checkLines(draft.lines, expected),
@@ -276,7 +304,7 @@
 			case 'confidence':
 				phase = 'confidence';
 				void tick().then(() =>
-					stageHost?.querySelector<HTMLElement>('.confidence-rating')?.focus()
+					stageHost?.querySelector<HTMLElement>('.confidence [role="slider"]')?.focus()
 				);
 				return;
 			case 'submit':
@@ -360,33 +388,40 @@
 		);
 		const timing = { duration: ((samples.length - 1) * 1000) / 60, easing: 'linear' };
 		const zones = stageHost.querySelectorAll<HTMLElement>(
-			'.stage-head, .stage-instrument, .stage-aside'
+			'.exercise-band, .stage-head, .stage-instrument, .stage-aside'
 		);
 		const runs = [...zones].map((zone) => zone.animate({ clipPath }, timing));
 		return () => runs.forEach((run) => run.cancel());
 	});
 
-	let finding = $derived.by((): Finding | null => {
+	/* What the reveal shows: a finding, or the neutral "Eingereicht" of the fourth evidence state. */
+	let status = $derived.by((): RevealStatus | null => {
 		if (!outcome) return null;
-		if (outcome.kind === 'response') return findingOf(outcome.response.result);
+		if (outcome.kind === 'response') return revealStatus(attemptResult(outcome.response));
 		if (outcome.kind === 'problem') return 'open';
 		return outcome.finding;
 	});
-	let because = $derived(
-		outcome?.kind === 'response'
-			? outcome.response.feedback
-			: outcome?.kind === 'problem'
-				? outcome.problem.message
-				: ''
+	let finding = $derived(status === 'received' ? null : (status as Finding | null));
+	let statusWord = $derived(
+		status === 'received' ? RECEIVED_WORD : status ? Readout.FINDING_WORDS[status] : ''
 	);
+	let because = $derived.by(() => {
+		if (outcome?.kind === 'problem') return outcome.problem.message;
+		if (outcome?.kind !== 'response') return '';
+		if (stage.correctFeedback && attemptResult(outcome.response) === 'korrekt') {
+			return stage.correctFeedback;
+		}
+		return outcome.response.feedback;
+	});
+	/* Only a chosen figure stands beside the answer; "ohne Angabe" is not written out. */
 	let confidenceReading = $derived(
-		isAnswerStep && askConfidence ? Fader.confidenceShort(draft.confidence) : undefined
+		isAnswerStep && askConfidence ? confidenceFigure(draft.confidence) : undefined
 	);
 	let revealSay = $derived(
 		[
 			`Du: ${speakRichText(yours)}`,
-			confidenceReading,
-			finding && `Befund: ${Readout.FINDING_WORDS[finding]}`,
+			isAnswerStep && askConfidence ? Fader.confidenceShort(draft.confidence ?? null) : undefined,
+			statusWord && `Befund: ${statusWord}`,
 			because
 		]
 			.filter(Boolean)
@@ -394,7 +429,14 @@
 	);
 </script>
 
-<div class="exercise-stage" bind:this={stageHost}>
+<div class="exercise-stage" data-layout="stage" bind:this={stageHost}>
+	<!-- One head for list and task: round back key, wordless dots, the corner stays for home. -->
+	<PageHead
+		accent="exercise"
+		backHref={listHref}
+		step={allSteps.length > 1 ? index + 1 : undefined}
+		total={allSteps.length > 1 ? allSteps.length : undefined}
+	/>
 	<Stage.Root
 		state={stageState}
 		step={index + 1}
@@ -404,14 +446,22 @@
 		onexit={() => void goto(listHref)}
 		{dirty}
 	>
-		<Stage.Meter href={listHref} />
+		<!-- Task data (formula, start value, programs) in one full-width band, no frame, no kicker. -->
+		{#key step.id}
+			{#if (step.context || step.facts) && !showValleys}
+				<div class="info-band exercise-band" data-row>
+					{#if step.context}
+						<p class="exercise-band-context"><RichText text={step.context} /></p>
+					{/if}
+					{#if step.facts}<Readout.Facts facts={step.facts} />{/if}
+				</div>
+			{/if}
+		{/key}
 
 		<!-- A new step is a new head: its ReadAloud segment leaves, so old speech stops at once. -->
 		{#key step.id}
 			<Stage.Head say={speakHead(step)}>
-				{#if step.context}<Stage.Context text={step.context} />{/if}
 				<Stage.Prompt text={step.ask} />
-				{#if step.facts && !showValleys}<Stage.Facts facts={step.facts} />{/if}
 			</Stage.Head>
 		{/key}
 
@@ -424,7 +474,6 @@
 				{/if}
 				{#if showSources && exercise.sources}
 					<section aria-label="Quellen">
-						<p class="m-label">Quellen</p>
 						<Fold.SourceList sources={exercise.sources} />
 					</section>
 				{/if}
@@ -438,9 +487,15 @@
 					voice={yoursVoice}
 					confidence={confidenceReading}
 					{finding}
-					expected={outcome?.kind === 'local' ? outcome.expected : undefined}
+					expected={outcome?.kind === 'local' && outcome.finding !== 'match'
+						? outcome.expected
+						: undefined}
 					say={revealSay}
 				>
+					{#if status === 'received'}
+						<!-- Fourth evidence state: received, not judged. Neutral, never partial or a match. -->
+						<p class="exercise-received" data-status="received">{RECEIVED_WORD}</p>
+					{/if}
 					{#if showValleys}<ValleyComparison />{/if}
 					{#if because}<p><RichText text={because} /></p>{/if}
 				</Stage.Reveal>
@@ -452,7 +507,10 @@
 					</div>
 				</Stage.Instrument>
 			{:else}
-				<Stage.Instrument label="Antwort" bleed={instrument.kind === 'spectrum'}>
+				<Stage.Instrument
+					label="Antwort"
+					bleed={instrument.kind === 'spectrum' || instrument.kind === 'sketch'}
+				>
 					{#if instrument.kind === 'choice'}
 						<ReadAloud.Segment as="div" say={speakOptions(options)}>
 							<Raster.ChoiceGrid
@@ -487,17 +545,7 @@
 							/>
 						</ReadAloud.Segment>
 					{:else if instrument.kind === 'sketch'}
-						<div class="sketch-handover">
-							<p class="sketch-state">
-								{#if sketch}
-									Deine vorgemerkte Skizze wird abgegeben:
-									<span class="sketch-count">{sketch.strokes.length} Striche</span>
-								{:else}
-									Diese Aufgabe beantwortest du mit einer Skizze.
-								{/if}
-							</p>
-							<a class="m-hit m-keyword sketch-link" href={whiteboardHref}>Zum Whiteboard</a>
-						</div>
+						<SketchAnswer taskId={task.taskId} disabled={pending} />
 					{:else if instrument.kind === 'spectrum'}
 						<Fader.SpectrumSlider
 							bind:value={draft.spectrum}
@@ -515,39 +563,217 @@
 			</Stage.Aside>
 		{/if}
 
-		{#if phase === 'revealed'}
-			<Stage.Action type="button" disabled={false} onclick={next}>Weiter</Stage.Action>
-		{:else}
-			<Stage.Action>{actionWord}</Stage.Action>
-		{/if}
+		<!-- The one action sits in the shared bottom bar, centred in the room left of the duck. -->
+		<BottomBar class="exercise-bar">
+			{#if phase === 'revealed'}
+				<Stage.Action type="button" disabled={false} onclick={next}>Weiter</Stage.Action>
+			{:else}
+				<Stage.Action>{actionWord}</Stage.Action>
+			{/if}
+		</BottomBar>
 	</Stage.Root>
 </div>
 
 <style>
+	/*
+	 * One calm stage for every task type (V4-5): the shared PageHead on top, the task band under
+	 * it across the full width, the stage in its reading rail, one action in the shared bottom bar.
+	 */
+	.exercise-stage {
+		grid-template-rows: auto minmax(0, 1fr);
+		align-content: stretch;
+		justify-items: stretch;
+		block-size: 100dvh;
+		overflow-x: clip;
+	}
+
+	.exercise-stage :global(.stage) {
+		inline-size: 100%;
+		block-size: 100%;
+		max-block-size: none;
+		padding-block-start: 0;
+	}
+
+	/* The task band: the shared .info-band, edge to edge of the screen, text on the rail. */
+	.exercise-band {
+		display: grid;
+		grid-area: meter;
+		gap: var(--space-s);
+		inline-size: auto;
+		margin-inline: calc(50% - 50vw);
+		padding-inline: calc(50vw - 50% + var(--gutter));
+	}
+
+	.exercise-band-context {
+		margin: 0;
+		color: var(--text-muted);
+		font-size: var(--type-meta);
+		line-height: var(--line-meta);
+	}
+
+	.exercise-band :global(.readout-facts) {
+		overflow-x: auto;
+	}
+
+	/* Code lines and numbers: one voice; JetBrains Mono only where [data-code] says so. */
+	.exercise-stage :global(.stage-prompt) {
+		font-family: var(--font-ui);
+	}
+
+	/*
+	 * "Mehr" is one clear round button under the question, no word: 40 px, ink ring, ink sign. The
+	 * trigger keeps its accessible name "Mehr öffnen", the label stays for screen readers only.
+	 */
+	.exercise-stage :global(.stage-more > .fold-trigger) {
+		justify-content: center;
+		align-items: center;
+		justify-self: start;
+		inline-size: 2.5rem;
+		block-size: 2.5rem;
+		margin-inline-start: var(--gutter);
+		padding: 0;
+		border: 2px solid var(--text);
+		border-radius: 50%;
+		background: var(--surface);
+		color: var(--text);
+	}
+
+	.exercise-stage :global(.stage-more > .fold-trigger:hover),
+	.exercise-stage :global(.stage-more > .fold-trigger[data-state='open']) {
+		background: var(--text);
+		color: var(--surface);
+	}
+
+	.exercise-stage :global(.stage-more .fold-label) {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.exercise-stage :global(.stage-more .fold-sign) {
+		display: grid;
+		place-items: center;
+		font-size: 1.5rem;
+		font-weight: 600;
+	}
+
+	/* The question lies on the stage's paper on every screen, never inside the task band. */
+	.exercise-stage :global(.stage-head) {
+		background: var(--surface);
+	}
+
+	/* The bottom bar spans the screen; on wide screens it keeps the same room on both sides. */
+	.exercise-stage :global(.exercise-bar) {
+		justify-content: center;
+	}
+
+	@media (min-width: 40rem) {
+		.exercise-stage :global(.exercise-bar) {
+			inset-inline-start: var(--corner-clearance);
+		}
+	}
+
+	.exercise-stage :global(.exercise-bar .stage-action) {
+		flex: 1;
+		inline-size: 100%;
+		max-inline-size: var(--exercise-rail);
+		margin: 0;
+	}
+
+	/* The leave question takes the bottom zone; the bar steps aside while it is open. */
+	.exercise-stage:has(:global(.stage-leave)) :global(.exercise-bar) {
+		visibility: hidden;
+	}
+
+	/* The verdict speaks in colour, not in capitals: DU and BEFUND stay for screen readers only. */
+	.exercise-stage :global(.readout-verdict-rows) {
+		gap: var(--space-s);
+		border: 0;
+		background: transparent;
+	}
+
+	.exercise-stage :global(.readout-verdict-row) {
+		grid-template-columns: minmax(0, 1fr);
+		border-radius: var(--radius-option);
+		padding-inline: var(--space-m);
+	}
+
+	.exercise-stage :global(.readout-verdict-row > dt) {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	/*
+	 * Feedback in colour, not in more words: the system green for a match, crimson for a deviation.
+	 * A match shows only the word; the chosen answer already stands in the row above.
+	 */
+	.exercise-stage :global(.readout-verdict-row[data-finding='match']) {
+		background: var(--status-good);
+		color: var(--status-good-text);
+	}
+
+	.exercise-stage :global(.readout-verdict-row[data-finding] .readout-verdict-word) {
+		background: transparent;
+		color: inherit;
+	}
+
+	.exercise-stage :global(.readout-verdict-row[data-finding='partial']) {
+		background: var(--status-mid);
+		color: var(--status-mid-text);
+	}
+
+	.exercise-stage :global(.readout-verdict-row[data-finding='deviates']) {
+		background: var(--status-bad);
+		color: var(--status-bad-text);
+	}
+
+	/* Not judged (a failed request) and received (fourth evidence state): neutral, never green. */
+	.exercise-stage :global(.readout-verdict-row[data-finding='open']),
+	.exercise-received {
+		background: var(--status-neutral);
+		color: var(--status-neutral-text);
+	}
+
+	.exercise-received {
+		display: flex;
+		align-items: center;
+		min-block-size: var(--cell);
+		margin: 0;
+		padding: var(--step-2) var(--space-m);
+		border-radius: var(--radius-option);
+		font-size: var(--type-body);
+		font-weight: var(--font-weight-strong);
+	}
+
+	.exercise-stage :global(.readout-verdict-row[data-finding] .readout-verdict-deviation) {
+		background: transparent;
+		color: inherit;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.exercise-stage :global(.readout-verdict-row[data-finding='match']) {
+			animation: good-flash 600ms var(--change-easing) both;
+		}
+	}
+
+	/* A short bright flash settles on the system green; each end keeps its own legible ink. */
+	@keyframes good-flash {
+		from {
+			background: var(--status-good-flash);
+			color: var(--status-good-flash-text);
+		}
+	}
+
 	.confidence-step {
 		display: grid;
 		align-content: start;
 		gap: var(--step-4);
-	}
-
-	.sketch-handover {
-		display: grid;
-		align-content: start;
-		justify-items: start;
-		gap: var(--step-3);
-	}
-
-	.sketch-state {
-		margin: 0;
-	}
-
-	.sketch-count {
-		font-family: var(--font-mono);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.sketch-link {
-		padding-inline: var(--step-4);
-		border: var(--hairline-width) solid var(--hairline);
 	}
 </style>

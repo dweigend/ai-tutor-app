@@ -1,5 +1,5 @@
 /*
- * Design tokens v3 (ui/DESIGN.md, 26.11.2026): one voice, two shapes, three layers of colour.
+ * Design tokens v4 (ui/DESIGN.md, 26.11.2026): one voice, two shapes, three layers of colour.
  * Surfaces are flat and square, controls are round. Signal colour triad on warm paper and matte
  * ink, no shadows. Light scheme only. Every contrast ratio follows the WCAG 2.2
  * relative-luminance formula and is checked by src/lib/styles/tokens-contrast.test.ts.
@@ -19,6 +19,42 @@
 	--palette-signal-yellow: #f4b810; /* ink 11.04:1; white fails (1.79:1), never light text */
 	--palette-signal-crimson: #b81444; /* white 6.52:1; ink fails (3.04:1), never dark text */
 
+	--duck-accent: var(--palette-signal-yellow);
+	--popup-bg: rgb(244 241 234 / 78%);
+	--popup-duck-bg: rgb(244 184 16 / 82%);
+	--popup-text: var(--palette-ink);
+	--shell-edge: max(6px, env(safe-area-inset-top), env(safe-area-inset-right));
+	--duck-size: 72px;
+	--duck-bottom: max(var(--space-m), env(safe-area-inset-bottom));
+	--duck-clearance: calc(var(--duck-bottom) + var(--duck-size) + var(--space-s));
+	--bottom-bar-height: 64px;
+	--z-duck: 900;
+	--z-chrome: 800;
+	--z-popup: 700;
+	--type-paper: var(--palette-paper);
+	--type-paper-text: var(--palette-ink);
+	--type-exercise: var(--palette-signal-orange);
+	--type-exercise-text: var(--palette-ink);
+	--type-explanation: #1f56d8;
+	--type-explanation-text: var(--palette-white);
+	--type-magazine: var(--palette-signal-crimson);
+	--type-magazine-text: var(--palette-white);
+	--type-whiteboard: #0e6b64;
+	--type-whiteboard-text: var(--palette-white);
+	--type-activity: var(--palette-graphite);
+	--type-activity-text: var(--palette-white);
+	--type-today: #166534;
+	--type-today-text: var(--palette-white);
+	--status-good: #16803c;
+	--status-good-text: var(--palette-white);
+	--status-good-flash: #22c55e;
+	--status-good-flash-text: var(--palette-ink);
+	--status-mid: #c25700;
+	--status-mid-text: var(--palette-white);
+	--status-bad: var(--palette-signal-crimson);
+	--status-bad-text: var(--palette-white);
+	--status-neutral: #6e6b63;
+	--status-neutral-text: var(--palette-white);
 	/* Shape (DESIGN.md §3): a surface is square, a control is round. Circles use 50%. */
 	--radius-flat: 0; /* surfaces, zones, list rows, tiles, the formula band */
 	--radius-pill: 999px; /* primary action, one-line options, chips */
@@ -63,7 +99,7 @@
 
 	/* Room for the fixed companion button and a gap beside it. */
 	--corner-inset: max(var(--space-m), env(safe-area-inset-right));
-	--corner-clearance: calc(var(--hit) + var(--corner-inset) + var(--space-m));
+	--corner-clearance: calc(var(--duck-size) + var(--corner-inset) + var(--space-s));
 
 	/*
 	 * Type (DESIGN.md §6): one voice. Archivo carries the whole interface, numbers included
@@ -144,7 +180,7 @@
  * Layer 1, the ground:      --surface, --text, --text-muted, --hairline
  * Layer 2, the neutrals:    --card (raised: I can press this), --well (sunk: read, or locked).
  *                           Both carry --text and --text-muted of their surface.
- * Layer 3, the accents:     --mark / --mark-text            yellow: chosen, active, "mine"
+ * Layer 3, the accents:     --mark / --mark-text            stone: chosen, active, "mine"
  *                           --grip / --grip-text            orange: handle, way back
  *                           --deviation / --deviation-text  crimson: deviates, discard
  *                           --action / --action-text        ink: primary action
@@ -158,8 +194,8 @@
 	--hairline: var(--palette-ink);
 	--card: var(--palette-white); /* text 19.80, muted 9.01 */
 	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
-	--mark: var(--palette-signal-yellow); /* 1.59 to paper: always with the ink sign */
-	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark: var(--palette-stone);
+	--mark-text: var(--palette-ink); /* 15.59 */
 	--mark-border: var(--palette-ink);
 	--grip: var(--palette-signal-orange); /* 3.10 to paper */
 	--grip-text: var(--palette-ink); /* 5.67 */
@@ -179,8 +215,8 @@
 	--hairline: var(--palette-ink);
 	--card: var(--palette-paper); /* text 17.55, muted 7.99 */
 	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
-	--mark: var(--palette-signal-yellow); /* 1.79 to white: always with the ink sign */
-	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark: var(--palette-stone);
+	--mark-text: var(--palette-ink); /* 15.59 */
 	--mark-border: var(--palette-ink);
 	--grip: var(--palette-signal-orange); /* 3.49 to white */
 	--grip-text: var(--palette-ink); /* 5.67 */
@@ -193,23 +229,24 @@
 	--focus-halo: var(--palette-white);
 }
 
+/* Older content names this surface yellow. Its neutral ground preserves dark type. */
 [data-surface='yellow'] {
-	--surface: var(--palette-signal-yellow);
-	--text: var(--palette-ink); /* 11.04 */
-	--text-muted: var(--palette-ink-muted); /* 5.03 */
+	--surface: var(--palette-stone);
+	--text: var(--palette-ink);
+	--text-muted: var(--palette-ink-muted);
 	--hairline: var(--palette-ink);
-	--card: var(--palette-white); /* text 19.80, muted 9.01 */
-	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
-	--mark: var(--palette-ink); /* yellow cannot mark on yellow: ink plate, yellow sign */
-	--mark-text: var(--palette-signal-yellow); /* 11.04 */
+	--card: var(--palette-white);
+	--well: var(--palette-stone);
+	--mark: var(--palette-ink);
+	--mark-text: var(--palette-stone);
 	--mark-border: var(--palette-ink);
-	--grip: var(--palette-ink); /* orange on yellow is 1.95, too weak */
-	--grip-text: var(--palette-signal-yellow); /* 11.04 */
+	--grip: var(--palette-ink);
+	--grip-text: var(--palette-stone);
 	--grip-border: var(--palette-ink);
-	--deviation: var(--palette-signal-crimson); /* 3.63 to yellow */
-	--deviation-text: var(--palette-white); /* 6.52 */
+	--deviation: var(--palette-signal-crimson);
+	--deviation-text: var(--palette-white);
 	--action: var(--palette-ink);
-	--action-text: var(--palette-signal-yellow); /* 11.04 */
+	--action-text: var(--palette-stone);
 	--focus: var(--palette-ink);
 	--focus-halo: var(--palette-white);
 }
@@ -222,7 +259,7 @@
 	--card: var(--palette-white); /* text 19.80 */
 	--well: var(--palette-stone); /* text 15.59 */
 	--mark: var(--palette-ink);
-	--mark-text: var(--palette-signal-yellow); /* 11.04 */
+	--mark-text: var(--palette-stone); /* 15.59 */
 	--mark-border: var(--palette-ink);
 	--grip: var(--palette-ink); /* orange is the surface, so the grip turns ink */
 	--grip-text: var(--palette-signal-orange); /* 5.67 */
@@ -242,8 +279,8 @@
 	--hairline: var(--palette-white); /* ink would be 3.04 */
 	--card: var(--palette-graphite); /* text 15.33 */
 	--well: var(--palette-ink); /* text 19.80 */
-	--mark: var(--palette-signal-yellow); /* 3.63 to crimson */
-	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark: var(--palette-stone);
+	--mark-text: var(--palette-ink); /* 15.59 */
 	--mark-border: var(--palette-ink);
 	--grip: var(--palette-white); /* 6.52 */
 	--grip-text: var(--palette-ink); /* 19.80 */
@@ -265,8 +302,8 @@
 	   (a card is round, a well is square). */
 	--card: var(--palette-graphite); /* text 15.33, muted 7.24 */
 	--well: var(--palette-graphite); /* text 15.33, muted 7.24 */
-	--mark: var(--palette-signal-yellow); /* 11.04 to ink */
-	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark: var(--palette-stone);
+	--mark-text: var(--palette-ink); /* 15.59 */
 	--mark-border: var(--palette-ink);
 	--grip: var(--palette-signal-orange); /* 5.67 */
 	--grip-text: var(--palette-ink); /* 5.67 */

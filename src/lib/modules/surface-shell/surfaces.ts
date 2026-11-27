@@ -1,7 +1,7 @@
 export const SURFACE_COLORS = {
 	paper: '#f4f1ea',
 	white: '#ffffff',
-	yellow: '#f4b810',
+	yellow: '#e8e4da',
 	orange: '#e85d1a',
 	crimson: '#b81444',
 	ink: '#0a0a0a'

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Icon from '../core/Icon.svelte';
-	import { Trigger } from '../read-aloud/index.js';
 	import Meter from '../readout/Meter.svelte';
 	import { getStageContext } from './context.js';
 
@@ -21,5 +20,4 @@
 		<Icon name="arrow-left" />
 	</a>
 	<Meter step={stage?.step ?? 1} steps={stage?.steps ?? 1} {done} label="Schritte" />
-	<Trigger />
 </div>

@@ -1,18 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Icon } from '$lib/modules';
+	import { IconButton } from '$lib/modules';
 	import { getReadAloudContext, getScopeContext } from '$lib/modules/read-aloud/context';
 
 	let { readingMinutes }: { readingMinutes: number } = $props();
 
 	const readAloud = getReadAloudContext();
 	const scope = getScopeContext()?.id ?? null;
-	const id = $props.id();
-	let ready = $state(false);
-	onMount(() => {
-		ready = true;
-	});
-
 	let segments = $derived(readAloud?.state.segments.filter((part) => part.scope === scope) ?? []);
 	let playing = $derived(readAloud?.state.status === 'speaking' && readAloud.state.scope === scope);
 	let segmentIndex = $derived(
@@ -27,28 +20,21 @@
 </script>
 
 <div class="essay-audio">
-	<button
-		type="button"
+	<IconButton
+		icon={playing ? 'pause' : 'play'}
+		label={playing ? 'Vorlesen pausieren' : 'Essay vorlesen'}
+		size="lg"
 		class="essay-play"
-		aria-label={playing ? 'Vorlesen pausieren' : 'Essay vorlesen'}
-		aria-describedby={ready && !available ? `${id}-voice` : undefined}
 		disabled={!available}
 		onclick={() => readAloud?.controller.toggle(scope)}
-	>
-		<Icon name={playing ? 'pause' : 'play'} />
-	</button>
+	/>
 	<div class="essay-audio-info">
 		<p class="audio-label">{playing ? 'Pause' : 'Vorlesen'}</p>
 		<p class="audio-length">
-			{readingMinutes} min Lesezeit{#if available && lastSegment > 0}
+			{readingMinutes} min{#if available && lastSegment > 0}
 				<span> · Absatz {lastSegment} von {segments.length}</span>
 			{/if}
 		</p>
-		{#if ready && !available}
-			<p class="audio-length" id="{id}-voice" role="status">
-				Dieser Browser bietet keine lokale deutsche Vorlesestimme an.
-			</p>
-		{/if}
 	</div>
 </div>
 
@@ -56,33 +42,12 @@
 	.essay-audio {
 		display: flex;
 		align-items: center;
-		gap: var(--step-3);
-		padding-inline: var(--gutter);
+		gap: var(--space-s);
 	}
 
-	.essay-play {
-		display: grid;
-		flex: none;
-		place-items: center;
-		inline-size: var(--control);
-		block-size: var(--control);
-		border: var(--hairline-width) solid var(--mark-border);
-		border-radius: 50%;
-		background: var(--mark);
-		color: var(--mark-text);
-		cursor: pointer;
-	}
-
-	.essay-play:disabled {
-		background: var(--well);
-		border-color: var(--hairline);
-		color: var(--text-muted);
-		cursor: default;
-	}
-
-	.essay-play:focus-visible {
-		outline: var(--focus-width) solid var(--focus);
-		outline-offset: var(--focus-width);
+	.essay-audio :global(.essay-play:disabled) {
+		background: var(--text-muted);
+		color: var(--card);
 	}
 
 	.essay-audio-info {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Icon } from '$lib/modules';
+	import { IconButton } from '$lib/modules';
 	interface Recognition {
 		lang: string;
 		start(): void;
@@ -52,28 +52,19 @@
 	}
 </script>
 
-{#if recognition}<button
-		type="button"
-		aria-label="Spracheingabe"
-		aria-pressed={recording}
+{#if recognition}<IconButton
+		icon="mic"
+		label="Spracheingabe"
+		active={recording}
+		class="dictation"
 		onclick={toggle}
-	>
-		<Icon name="mic" />
-	</button>{/if}
+	/>{/if}
 {#if error}<span class="error" role="status">{error}</span>{/if}
 
 <style>
-	button {
-		background: transparent;
-		color: inherit;
-		border: 0;
-		width: 44px;
-		height: 44px;
-		border-radius: 50%;
-		cursor: pointer;
-	}
-	button[aria-pressed='true'] {
+	:global(.dictation[aria-pressed='true']) {
 		background: var(--mark);
+		color: var(--mark-text);
 	}
 	.error {
 		position: absolute;

@@ -1,14 +1,8 @@
 import type { MotifId } from '$lib/art/motifs';
-import type { IconName } from '$lib/modules';
 import type { Surface } from '$lib/styles/surface';
 
-/** Surface colours a tile can take; each one has a checked text pair in tokens.css. */
-export type TileTone = 'paper' | 'white' | 'ink' | 'orange' | 'yellow' | 'crimson';
-
-/** Label colour: dark is ink (#0A0A0A), light is white. Chosen per calm zone, not per tone. */
-export type LabelTone = 'dark' | 'light';
-
-export type LabelCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+/** Surface colours an area can take; each one has a checked text pair in tokens.css. */
+export type TileTone = 'paper' | 'white' | 'ink' | 'orange' | 'crimson';
 
 export type AreaPath =
 	'/magazin' | '/tutor' | '/uebungen' | '/erklaerungen' | '/whiteboard' | '/aktivitaet';
@@ -24,9 +18,9 @@ export interface Area {
 }
 
 /**
- * Every app area, in the order of their two-digit number in the top bar (`01 / ÜBUNGEN`).
- * The start page is the only overview; sub pages lead back to it through the grid sign in the
- * SurfaceShell bar. The tone matches the dominant surface of the area's motif.
+ * Every app area in its canonical order.
+ * The start page is the only overview; sub pages lead back to it through the global home button.
+ * The tone matches the dominant surface of the area's motif.
  */
 export const areas: readonly Area[] = [
 	{
@@ -78,138 +72,48 @@ export function areaFor(path: AreaPath): Area {
 	return area;
 }
 
-export type Importance = 'high' | 'normal';
+/**
+ * Content type of a start tile. It is told by the TypeBadge and the type colour alone
+ * (`--type-*` in tokens.css). Signal yellow belongs to the duck and is never a tile colour.
+ */
+export type TileType =
+	'exercise' | 'explanation' | 'magazine' | 'whiteboard' | 'activity' | 'today';
 
-export interface HomeLink {
+/** Flat graphics a tile can carry instead of a picture (`$lib/art/TileGraphic.svelte`). */
+export type TileGraphicId = 'valley' | 'board' | 'pulse' | 'fader' | 'pages';
+
+export interface HomeTile {
+	/** Stable id; it also names the tile in the viewer's saved board. */
 	id: string;
-	category: string;
+	/** The one visible line: at most three words. */
 	title: string;
+	type: TileType;
 	path: AreaPath;
-	slug?: string;
-	taskId?: string;
-	tone: TileTone;
+	/** A full-bleed picture, or a flat graphic in the type colour. */
+	art?: MotifId;
+	graphic?: TileGraphicId;
 }
 
-export type HomeOffer = HomeLink & { art: MotifId } & (
-		{ importance: 'normal' } | { importance: 'high'; subtitle: string; icon: IconName }
-	);
-
-export function homeLinkLabel({ category, title }: HomeLink): string {
-	// CSS supplies the visual capitals; the spoken label can use natural casing.
-	return `${category}: ${title}`;
-}
-
-export const homeTutor = {
-	id: 'tutor',
-	category: 'Tutor',
-	title: 'Sparring ohne Vorsagen',
-	path: '/tutor',
-	tone: 'ink'
-} as const satisfies HomeLink;
-
-/** Stable ids also identify the offers in the viewer's saved arrangement. */
-export const homeOffers: readonly HomeOffer[] = [
-	{
-		id: 'uebung-lernraten',
-		category: 'Übung',
-		title: 'Wettlauf zum tiefsten Punkt',
-		importance: 'high',
-		subtitle: 'Am selben Hang macht Programm B viermal so große Schritte.',
-		icon: 'pen',
-		path: '/uebungen',
-		taskId: 'a-gd-schritte-vorhersagen',
-		tone: 'orange',
-		art: 'home-lernraten'
-	},
+/**
+ * The areas of the app as start tiles, in their first order. They always stand on the start
+ * page; topics from the learning queue land in front of them (issue #58).
+ */
+export const homeTiles: readonly HomeTile[] = [
+	{ id: 'uebungen', title: 'Übungen', type: 'exercise', path: '/uebungen', art: 'uebungen' },
 	{
 		id: 'erklaerungen',
-		category: 'Erklärung',
-		title: 'Im Schaltwerk der Gewichte',
-		importance: 'high',
-		subtitle: 'Erst vorhersagen, dann Attention und Rückfluss am Regler testen.',
-		icon: 'sliders',
+		title: 'Erklärungen',
+		type: 'explanation',
 		path: '/erklaerungen',
-		tone: 'ink',
-		art: 'home-schaltwerk'
-	},
-	{
-		id: 'magazin',
-		category: 'Magazin',
-		title: 'Was nach dem grünen Haken bleibt',
-		importance: 'normal',
-		path: '/magazin',
-		tone: 'crimson',
-		art: 'home-magazin'
+		graphic: 'valley'
 	},
 	{
 		id: 'whiteboard',
-		category: 'Whiteboard',
-		title: 'Rechenwege von Hand ziehen',
-		importance: 'normal',
+		title: 'Whiteboard',
+		type: 'whiteboard',
 		path: '/whiteboard',
-		tone: 'ink',
-		art: 'home-whiteboard'
+		graphic: 'board'
 	},
-	{
-		id: 'podcast-lampe',
-		category: 'Podcast',
-		title: 'Die grüne Lampe lügt',
-		importance: 'normal',
-		path: '/magazin',
-		slug: 'die-gruene-lampe-luegt',
-		tone: 'white',
-		art: 'podcast'
-	},
-	{
-		id: 'aktivitaet',
-		category: 'Aktivität',
-		title: 'Was ohne Hilfe trägt',
-		importance: 'normal',
-		path: '/aktivitaet',
-		tone: 'ink',
-		art: 'aktivitaet'
-	},
-	{
-		id: 'essay-loesung',
-		category: 'Essay',
-		title: 'Was morgen von der Lösung bleibt',
-		importance: 'high',
-		subtitle: 'Warum hohe Übungswerte mit Chat im ungestützten Test wegbrechen.',
-		icon: 'book',
-		path: '/magazin',
-		slug: 'was-von-der-loesung-bleibt',
-		tone: 'yellow',
-		art: 'home-lernstand'
-	},
-	{
-		id: 'erklaerung-attention',
-		category: 'Erklärung',
-		title: 'Warum Attention einen Teiler braucht',
-		importance: 'high',
-		subtitle: 'Eine einzige Division hält die Gewichte im Transformer beweglich.',
-		icon: 'sliders',
-		path: '/erklaerungen',
-		tone: 'ink',
-		art: 'home-attention'
-	},
-	{
-		id: 'essay-maschine',
-		category: 'Essay',
-		title: 'Wo das Delegieren kippt',
-		importance: 'normal',
-		path: '/magazin',
-		slug: 'welche-arbeit-die-maschine-uebernimmt',
-		tone: 'orange',
-		art: 'home-delegieren'
-	},
-	{
-		id: 'essay-sicher',
-		category: 'Essay',
-		title: 'Wie sicher bist du dir wirklich?',
-		importance: 'normal',
-		path: '/magazin',
-		slug: 'wie-sicher-sind-sie',
-		tone: 'ink',
-		art: 'home-sicherheit'
-	}
+	{ id: 'magazin', title: 'Magazin', type: 'magazine', path: '/magazin', art: 'magazin' },
+	{ id: 'aktivitaet', title: 'Aktivität', type: 'activity', path: '/aktivitaet', graphic: 'pulse' }
 ];

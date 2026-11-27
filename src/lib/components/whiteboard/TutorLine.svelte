@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { Icon, ReadAloud, animate, releaseAction, swipe, type Animation } from '$lib/modules';
+	import {
+		IconButton,
+		ReadAloud,
+		animate,
+		releaseAction,
+		swipe,
+		type Animation
+	} from '$lib/modules';
 
 	interface Px {
 		x: number;
@@ -8,7 +15,6 @@
 
 	interface Props {
 		text: string;
-		demo: boolean;
 		/** Highest and lowest ink point of the sketch in board pixels; null for an empty board. */
 		anchorTop: Px | null;
 		anchorBottom: Px | null;
@@ -20,8 +26,7 @@
 		onclose: () => void;
 	}
 
-	let { text, demo, anchorTop, anchorBottom, topLimit, bottomLimit, width, onclose }: Props =
-		$props();
+	let { text, anchorTop, anchorBottom, topLimit, bottomLimit, width, onclose }: Props = $props();
 
 	const GAP = 16;
 	let plateHeight = $state(0);
@@ -106,12 +111,9 @@
 		{@attach swipe(handlers)}
 	>
 		<div class="tutor-head" data-row>
-			<span class="m-label tutor-word">{demo ? 'TUTOR · DEMO' : 'TUTOR'}</span>
 			<span class="tutor-keys">
 				<ReadAloud.Trigger />
-				<button type="button" class="m-icon-button" aria-label="Schließen" onclick={onclose}>
-					<Icon name="close" />
-				</button>
+				<IconButton icon="close" label="Schließen" onclick={onclose} />
 			</span>
 		</div>
 		<ReadAloud.Segment as="p" class="tutor-text">{text}</ReadAloud.Segment>
@@ -149,7 +151,7 @@
 	.tutor-head {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 		block-size: var(--bar);
 		padding-inline-start: var(--step-3);
 	}
@@ -160,7 +162,6 @@
 		padding-inline-end: var(--step-3);
 	}
 
-	/* Tutor speech is Archivo 17 (DESIGN.md §6); Mono carries the word TUTOR. */
 	.tutor-line :global(.tutor-text) {
 		margin-inline: var(--step-3);
 		padding-block-end: var(--step-3);

@@ -19,7 +19,7 @@ flowchart TD
         Art["art/ · Responsive AVIF/WebP Motif Pipeline (MotifImage + 400w/800w srcsets)"]
         Api["api/ · Typed TutorApiClient (MockTutorClient + HttpTutorClient JSON/SSE)"]
         Content["content/ · Deterministic German Course & Editorial Fixtures"]
-        Styles["styles/ · Design System v3 Tokens, 6 Surfaces, Local WOFF2 Fonts"]
+        Styles["styles/ · Design System v4 Tokens, 6 Surfaces, Local WOFF2 Fonts"]
     end
 
     Routes --> Components
@@ -86,11 +86,11 @@ Learner state and contextual awareness are split into a framework-free TypeScrip
   - Tested directly in Node.js without a browser or Svelte compiler (`memory.test.ts`).
 - **Reactive adapter (`runtime.svelte.ts`):** Connects `LearningMemoryStore` and `ScreenContextStore` to Svelte 5 runes for `DuckCompanion.svelte`, `CompanionSheet.svelte`, and `MemoryDrawer.svelte`.
 
-### 2.5 `src/lib/math/` — Zero-`{@html}` Local KaTeX Pipeline
+### 2.5 `src/lib/math/` — Local KaTeX Pipeline
 
 Mathematical notation avoids both external CDNs and raw HTML string interpolation:
 
-- **DOM-tree rendering (`katex-render.ts`, `Formula.svelte`):** Calls `katex.render(latex, element, { trust: false, throwOnError: true, maxExpand: 100, maxSize: 10 })` directly on a bound `<span>` after `element.replaceChildren()`, importing local `katex/dist/katex.min.css`. Zero `{@html}` blocks are used for math.
+- **DOM-tree rendering (`katex-render.ts`, `Formula.svelte`):** Calls `katex.render(latex, element, { trust: false, throwOnError: true, maxExpand: 100, maxSize: 10 })` directly on a bound `<span>` after `element.replaceChildren()`, importing local `katex/dist/katex.min.css`.
 - **Accessibility & fallback:** Every `FormulaNode` (`editorial-formulas.ts`, `lab-formulas.ts`) carries a mandatory German `spoken` reading exposed via `role="math"` and `aria-label`. If a `katex.ParseError` ever occurs, the visual tree stays empty and the `spoken` text renders visibly inline.
 - **Interactive terms (`InteractiveFormula.svelte`, `attention-terms.ts`):** Display formulas can declare tappable pill buttons (`≥ 44×44 px` hit targets, `aria-expanded`, `Escape` key dismissal with focus restoration) that explain individual symbols (e.g., $Q$, $K$, $V$, $\sqrt{d_k}$) and publish the active `FormulaSelection` to `ScreenContextStore` so the corner companion and tutor know which term the learner is inspecting.
 
@@ -114,7 +114,7 @@ Editorial illustrations follow a single build-time compression contract (`DESIGN
 
 ---
 
-## 3. Design System v3 Mechanical Verification (`src/lib/styles/`)
+## 3. Design System v4 Mechanical Verification (`src/lib/styles/`)
 
 Design rules in `DESIGN.md` are backed by automated checks rather than manual inspection alone:
 

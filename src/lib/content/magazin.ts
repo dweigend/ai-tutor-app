@@ -23,7 +23,7 @@ export interface ArtImage {
 }
 
 /** The surface of an opener: the motif's colour, as on its start tile. */
-export type MagazinTone = 'paper' | 'white' | 'yellow' | 'orange' | 'ink';
+export type MagazinTone = 'paper' | 'white' | 'crimson' | 'ink';
 
 /** The one recommendation under an article: the next article, or the matching exercise. */
 export type ArticleNext = { kind: 'magazin'; id: string } | { kind: 'uebung'; taskId: string };
@@ -103,15 +103,15 @@ const articleLernstand: EditorialArticle = {
 	kicker: 'Lernen mit KI',
 	title: 'Was ist von der Lösung morgen noch da?',
 	question: 'Was ist von deiner Lösung morgen noch da?',
-	teaser: 'Zwei identische Abgaben, eine neue Lernrate: Warum Übungserfolg mit KI oft verfliegt.',
+	teaser: 'Was eine richtige Lösung über dein Können verrät.',
 	deck: 'Zwei Studierende reichen am Abend dieselbe richtige Lösung ein. Am nächsten Morgen genügt eine geänderte Zahl an der Tafel, um sie zu trennen. Warum glattes Bearbeiten täuscht und weshalb Sprachmodelle diese Lücke vergrößern.',
 	editorialStyle: 'zeit',
 	readingMinutes: 4,
 	pullQuote: 'Wer nur den ersten Messpunkt misst, misst das Werkzeug, nicht die Person.',
-	tone: 'yellow',
+	tone: 'white',
 	art: {
 		src: '/art/essay-lernstand.webp',
-		alt: 'Kleine Figur auf einer dunklen Wabenkuppel vor gelbem Himmel',
+		alt: 'Kleine Figur auf einer dunklen Wabenkuppel',
 		tile: 'essay-lernstand',
 		position: '50% 100%'
 	},
@@ -149,8 +149,7 @@ const articleLernstand: EditorialArticle = {
 				])
 			},
 			'Dienstagabend, kurz nach zehn. Lena und Jonas laden dasselbe Übungsblatt hoch: Gradientenabstieg, Aufgabe drei. Beide Lösungen sind richtig, beide sauber kommentiert. Lena hat zwei Stunden gebraucht und sich dreimal verrechnet. Jonas war nach vierzig Minuten fertig. Ein Chatfenster hat ihm die Schleife geschrieben, er hat sie gelesen, verstanden, wie er fand, und eingereicht.',
-			'Mittwochmorgen, Tutorium. Dieselbe Aufgabe steht an der Tafel, nur die Lernrate ist eine andere. Lena rechnet. Jonas erkennt die Form der alten Lösung wieder und kommt nicht weiter.',
-			'Die beiden gibt es nicht, die Szene ist konstruiert. Wer je ein Tutorium geleitet hat, kennt sie trotzdem.'
+			'Mittwochmorgen, Tutorium. Dieselbe Aufgabe steht an der Tafel, nur die Lernrate ist eine andere. Lena rechnet. Jonas erkennt die Form der alten Lösung wieder und kommt nicht weiter.'
 		),
 		section(
 			'loesung-messpunkte',
@@ -190,7 +189,7 @@ const articleLernstand: EditorialArticle = {
 			'loesung-frage',
 			{ heading: 'Welche Leitplanke trägt, ist noch unbewiesen' },
 			cited(
-				'Redlich bleibt festzuhalten: Niemand weiß bisher, welche einzelne Regel eines Tutors den Unterschied macht. Bastanis Leitplanken wirkten als Paket. Kestins Tutor war sorgfältig vorstrukturiert, aber nicht gegen einen späten Test geprüft. Das Labor dieses Projekts misst deshalb zuerst Abläufe und keine Lernwirkung.',
+				'Redlich bleibt festzuhalten: Niemand weiß bisher, welche einzelne Regel eines Tutors den Unterschied macht. Bastanis Leitplanken wirkten als Paket. Kestins Tutor war sorgfältig vorstrukturiert, aber nicht gegen einen späten Test geprüft.',
 				'bastani-2025',
 				'kestin-2025'
 			),
@@ -249,12 +248,12 @@ const articleDelegation: EditorialArticle = {
 	kicker: 'Delegation',
 	title: 'Welche Arbeit soll die Maschine übernehmen?',
 	question: 'Welche Arbeit darf die Maschine übernehmen?',
-	teaser: 'Der Test ist grün, die Ableitung falsch: Warum kluges Delegieren am Lernziel hängt.',
+	teaser: 'Wann du KI-Code selbst prüfen musst.',
 	deck: 'Eine Studentin lässt sich sieben Zeilen Rückwärtsrechnung von einem Sprachmodell schreiben. Ihr Test leuchtet grün, bis zwei verschiedene Faktoren aufeinandertreffen. Warum die Grenze für sinnvolle KI-Hilfe mit dem eigenen Können wandert.',
 	editorialStyle: 'brand-eins',
 	readingMinutes: 5,
 	pullQuote: 'Ein grüner Test ist nur so viel wert wie der Fall, den er prüft.',
-	tone: 'orange',
+	tone: 'crimson',
 	art: {
 		src: '/art/essay-tutor.webp',
 		alt: 'Person an einem Röhrenmonitor am Rand einer großen orangefarbenen Fläche',
@@ -294,7 +293,7 @@ const articleDelegation: EditorialArticle = {
 					{ label: 'Abweichung', value: 'bis 5' }
 				])
 			},
-			'Die Tests sind grün. Sara, auch sie ist erfunden, hat sich von einem Sprachmodell die Rückwärtsrechnung ihrer kleinen Autodiff-Engine schreiben lassen: Kursmodul drei, Klasse `Value`. Der Code sieht aus wie aus dem Lehrbuch. Er hat Kommentare, Typen und einen Satz zur Produktregel. Ihr Test prüft `x * x` an der Stelle 3 und erwartet 6. Er bekommt 6.',
+			'Die Tests sind grün. Sara hat sich von einem Sprachmodell die Rückwärtsrechnung ihrer kleinen Autodiff-Engine schreiben lassen: Kursmodul drei, Klasse `Value`. Der Code sieht aus wie aus dem Lehrbuch. Er hat Kommentare, Typen und einen Satz zur Produktregel. Ihr Test prüft `x * x` an der Stelle 3 und erwartet 6. Er bekommt 6.',
 			cited(
 				'Dann probiert sie `a * b` mit a = 2 und b = −3. Richtig wären die Gradienten −3 für a und 2 für b. Der Code liefert 2 und −3. Er schreibt jedem Faktor seinen eigenen Wert zu statt den des anderen. Bei `x * x` fällt das nicht auf, weil beide Faktoren dieselbe Zahl sind. Die Abweichung beträgt bis zu 5. In jedem Netz, das auf dieser Engine trainiert, wäre sie still mitgelaufen.',
 				'aufgabe-ki-backward'
@@ -316,16 +315,15 @@ const articleDelegation: EditorialArticle = {
 				'Das Kurspaket zieht diese Grenze am Projekt, nicht am Werkzeug. Im Halbmond-Projekt des sechsten Moduls trainieren Studierende ein kleines Netz auf zweidimensionalen Punkten. CSV einlesen und den Plot zeichnen darf das Modell übernehmen, mit einer Prüfung, ob die Daten stimmen. Lokale Ableitungen, Update-Schritt, Gradiententest und die Regel, wie Daten in Training, Validierung und Test aufgeteilt werden, bleiben bei den Studierenden. Genau diese Tätigkeiten soll der Kurs vermitteln.',
 				'aufgabe-delegation'
 			),
-			'Die Grenze ist nicht fest. Wer die eigene Engine gebaut und mit einem selbst geschriebenen Gradiententest geprüft hat, darf sie später durch PyTorch ersetzen. Die Bibliothek tritt dann gegen das eigene Prüfwerkzeug an. Delegation wird so etwas, das man sich erarbeitet.',
-			'Diese Regel ist kein Forschungsergebnis. Sie ist eine Entscheidung dieses Projekts. Sie lässt sich prüfen, und sie muss erst noch geprüft werden.'
+			'Die Grenze ist nicht fest. Wer die eigene Engine gebaut und mit einem selbst geschriebenen Gradiententest geprüft hat, darf sie später durch PyTorch ersetzen. Die Bibliothek tritt dann gegen das eigene Prüfwerkzeug an. Delegation wird so etwas, das man sich erarbeitet.'
 		),
 		section(
 			'maschine-pruefer',
 			{ heading: 'Wann eingreifen und wann schweigen' },
-			'Hier liegt der organisatorische Haken. Ein Tutorsystem, das Delegationsgrenzen einhalten soll, braucht ein Modell, das Züge vorschlägt, und Kursregeln, die diese Züge freigeben oder blockieren. Im synthetischen Labortest des Projekts mit Qwen3.5-9B gingen je nach Promptversion 4 von 13 beziehungsweise 8 von 13 Vorschlägen durch. In einem Fall blockierte der Filter sogar das Angebot einer Pause.',
-			'Das ist ein Befund über den Ablauf am Prototyp, keine Messung von Lernwirkung. Er zeigt aber, wie schnell Regeln über ihr Ziel hinausschießen. Der vorgeschlagene erste Schritt ist deshalb kein Rollout, sondern Co-Creation: Lehrende und Studierende legen gemeinsam fest, wo die Grenze in ihrem Kurs verläuft.',
+			'Hier liegt der praktische Haken. Ein Tutor, der Delegationsgrenzen einhalten soll, braucht ein Modell, das Züge vorschlägt, und Regeln, die sie freigeben oder blockieren. Schon in kleinen Tests mit Qwen3.5-9B gingen je nach Prompt nur 4 beziehungsweise 8 von 13 Vorschlägen durch – einmal blockierte der Filter sogar das Angebot einer Pause.',
+			'Starre Regeln schießen schnell über ihr Ziel hinaus. Sinnvoller als ein blinder Filter ist eine klare Absprache im Kurs: Lehrende und Studierende legen gemeinsam fest, welche Schritte man auslagern darf und welche nicht.',
 			cited(
-				'In der Forschungsliteratur ist DICE bislang der engste gefundene Vorläufer für eine solche vorgelagerte Eingriffsentscheidung. Der Prüfvorschlag dieses Projekts vergleicht deshalb beim Programmieren eine situationsabhängige Steuerung direkt mit einem festen Prompt oder einer einfachen Regel und zählt zwei Fehlerarten getrennt: Fehlalarme mitten im eigenen Fortschritt und verpasste Hilfe bei echten Blockaden. Ob daraus mehr selbstständiger Transfer entsteht, entscheidet erst ein eigener Kursversuch.',
+				'In der Forschungsliteratur trennt etwa DICE die Entscheidung zum Eingreifen von der Wahl der Rückmeldung. Entscheidend sind zwei Fehlerarten: Fehlalarme mitten im eigenen Fortschritt und verpasste Hilfe bei echten Blockaden. Ob daraus beim Programmieren mehr selbstständiger Transfer entsteht, entscheidet erst ein eigener Kursversuch.',
 				'dice-eingriff'
 			),
 			cited(
@@ -404,7 +402,7 @@ const articleKalibrierung: EditorialArticle = {
 	kicker: 'Kalibrierung',
 	title: 'Wie sicher bist du dir bei dieser Antwort?',
 	question: 'Wie prüfst du, ob deine Sicherheit stimmt?',
-	teaser: 'Ein Netz meldet 99,995 Prozent, eine Studentin „ganz sicher“. Beides ist kein Beleg.',
+	teaser: 'Wie gut deine Zuversicht zur Trefferquote passt.',
 	deck: 'Ein Klassifikator meldet 99,995 Prozent, eine Studentin tippt auf „ganz sicher“. Beides sind vorerst bloße Behauptungen. Wie man bei Maschinen und Menschen prüft, ob große Zuversicht tatsächlich trägt.',
 	editorialStyle: 'economist',
 	readingMinutes: 5,
@@ -485,7 +483,7 @@ const articleKalibrierung: EditorialArticle = {
 			'sicher-oberflaeche',
 			{ heading: 'Zwei Urteile, die sich widersprechen dürfen' },
 			'Für ein Lernsystem folgt daraus eine bescheidene Regel. Sicherheit wird abgefragt, bevor die Lösung sichtbar ist, und später mit der tatsächlichen Trefferquote ähnlicher Aufgaben verglichen. Bei wenigen Versuchen zeigt das System Einzelbelege statt einer Quote. Drei Treffer sind keine Statistik.',
-			'Im Lernstand-Entwurf des Projekts stehen deshalb zwei Einträge nebeneinander, die sich widersprechen dürfen: „sitzt sicher, 4 von 5“ als eigene Einschätzung und „wackelt, mit Hinweis gelöst“ als Beleg des Systems. Die Person kann den Beleg öffnen, widersprechen, ihn löschen lassen oder eine neue Aufgabe ohne Hilfe probieren. Das soll Überschätzung sichtbar machen. Es soll auch das Umgekehrte leisten, an das seltener gedacht wird: unterschätztes Können zeigen.',
+			'Sinnvoll sind deshalb zwei Einträge nebeneinander, die sich widersprechen dürfen: „sitzt sicher“ als eigene Einschätzung und „mit Hinweis gelöst“ als letzter Beleg. Wer mag, prüft den Beleg oder probiert direkt eine neue Aufgabe ohne Hilfe. Das macht Überschätzung sichtbar – und genauso unterschätztes Können.',
 			'Weder das Modell noch die Studentin hat mit ihrer Zahl recht oder unrecht, solange niemand nachzählt. Gewissheit ist eine Hypothese. Über sie entscheiden erst die Daten.'
 		)
 	],
@@ -593,8 +591,8 @@ const episodeGrueneLampe: EditorialEpisode = {
 	kicker: 'Folge 1 · Prüfen',
 	title: 'Die grüne Lampe lügt',
 	question: 'Warum bleibt der Test mit x · x grün?',
-	teaser: 'Grüner Test, falscher Code: über Gegenfälle und Hinweise. Die Rollen sind inszeniert.',
-	deck: 'Ein Test ist grün, der Code ist falsch. Eine Folge über Produktregel, Gegenfälle und die Frage, wann ein Hinweis das Denken anstößt und wann er es übernimmt. Szenen und Gesprächsrollen sind inszeniert, die Zahlen stammen aus dem Kurs.',
+	teaser: 'Wie Gegenfälle einen Fehler im KI-Code aufdecken.',
+	deck: 'Ein Test ist grün, der Code ist falsch. Eine Folge über Produktregel, Gegenfälle und die Frage, wann ein Hinweis das Denken anstößt und wann er es übernimmt.',
 	durationSeconds: 1_200,
 	tone: 'white',
 	art: {
@@ -706,11 +704,10 @@ const episodeStatistik: EditorialEpisode = {
 	kicker: 'Folge 2 · Üben',
 	title: 'Zwölf Stunden bis zur Statistik',
 	question: 'Wie bringen dieselben zwölf Stunden mehr?',
-	teaser:
-		'Zwölf Stunden bis zur Klausur: was Abrufen anders macht als Markieren. Mia ist erfunden.',
-	deck: 'Mia hat drei Wochen bis zur Klausur und zwölf Stunden Zeit. Eine Folge darüber, warum sich Markieren produktiv anfühlt, was Abrufen anders macht und wann eine Hürde beim Lernen hilft. Mia und die Gesprächsrollen sind erfunden.',
+	teaser: 'Warum Abrufen mehr bringt als Markieren.',
+	deck: 'Mia hat drei Wochen bis zur Klausur und zwölf Stunden Zeit. Eine Folge darüber, warum sich Markieren produktiv anfühlt, was Abrufen anders macht und wann eine Hürde beim Lernen hilft.',
 	durationSeconds: 1_140,
-	tone: 'orange',
+	tone: 'crimson',
 	art: {
 		src: '/art/hero-collage-orange.webp',
 		alt: 'Orangefarbene Scheibe über einem alten Synthesizer-Pult in Druckgrafik',
@@ -829,7 +826,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'IHZwWFHWa-w',
-		title: 'Gradient descent, how neural networks learn | Deep Learning Chapter 2',
+		title: 'Wie ein Netz seinen Fehler senkt',
 		channel: '3Blue1Brown',
 		channelUrl: 'https://www.youtube.com/@3blue1brown',
 		duration: '20:33',
@@ -843,7 +840,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'Ilg3gGewQ5U',
-		title: 'Backpropagation, intuitively | Deep Learning Chapter 3',
+		title: 'Backpropagation im Bild',
 		channel: '3Blue1Brown',
 		channelUrl: 'https://www.youtube.com/@3blue1brown',
 		duration: '12:47',
@@ -858,7 +855,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'tIeHLnjs5U8',
-		title: 'Backpropagation calculus | Deep Learning Chapter 4',
+		title: 'Backpropagation mit der Kettenregel',
 		channel: '3Blue1Brown',
 		channelUrl: 'https://www.youtube.com/@3blue1brown',
 		duration: '10:18',
@@ -873,7 +870,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'eMlx5fFNoYc',
-		title: 'Attention in transformers, step-by-step | Deep Learning Chapter 6',
+		title: 'Wie Attention Informationen mischt',
 		channel: '3Blue1Brown',
 		channelUrl: 'https://www.youtube.com/@3blue1brown',
 		duration: '26:10',
@@ -888,7 +885,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: '0VLAoVGf_74',
-		title: 'How DeepSeek Rewrote the Transformer [MLA]',
+		title: 'Wie DeepSeek den Speicherbedarf senkt',
 		channel: 'Welch Labs',
 		channelUrl: 'https://www.youtube.com/@WelchLabs',
 		duration: '18:09',
@@ -902,7 +899,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'D8GOeCFFby4',
-		title: 'The most complex model we actually understand',
+		title: 'Vom Auswendiglernen zur Regel',
 		channel: 'Welch Labs',
 		channelUrl: 'https://www.youtube.com/@WelchLabs',
 		duration: '35:29',
@@ -917,7 +914,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'podcast',
 		videoId: 'bJBEFzlKPoQ',
-		title: "Building Legal Agents When You Can't See the Data — Jacob Lauritzen, CTO of Legora",
+		title: 'Wie Legora KI-Agenten testet',
 		channel: 'Latent Space',
 		channelUrl: 'https://www.youtube.com/@LatentSpacePod',
 		duration: '1:07:22',
@@ -932,7 +929,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'podcast',
 		videoId: '_Ygf0GnlwmY',
-		title: 'Mechanistic Interpretability - NEEL NANDA (DeepMind)',
+		title: 'Wie Transformer innen rechnen',
 		channel: 'Machine Learning Street Talk',
 		channelUrl: 'https://www.youtube.com/@MachineLearningStreetTalk',
 		duration: '3:57:44',
@@ -947,7 +944,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'podcast',
 		videoId: 'zzXyPGEtseI',
-		title: 'Is human data enough? | David Silver',
+		title: 'Wie KI aus Selbstspiel lernt',
 		channel: 'Google DeepMind',
 		channelUrl: 'https://www.youtube.com/@googledeepmind',
 		duration: '49:31',
@@ -962,7 +959,7 @@ export const youtubeMagazineEntries: readonly YoutubeMagazineEntry[] = [
 		kind: 'youtube',
 		category: 'video',
 		videoId: 'D7_ipDqhtwk',
-		title: 'How We Build Effective Agents: Barry Zhang, Anthropic',
+		title: 'Wann sich KI-Agenten lohnen',
 		channel: 'AI Engineer',
 		channelUrl: 'https://www.youtube.com/@aiDotEngineer',
 		duration: '15:09',

@@ -61,3 +61,5 @@ export {
 	type SpeechSegment
 } from './read-aloud/speech.js';
 export { startSurfaceBlende } from './surface-shell/blende.js';
+export { ProgressDots, StatusSignal, TypeBadge } from './indicators/index.js';
+export { PageHead, BottomBar, IconButton } from './surface-shell/index.js';

@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { getTutorAppContext } from '$lib/api/context.svelte';
 	import { learningMemory } from '$lib/memory/runtime.svelte';
@@ -22,23 +21,28 @@
 		reactionFor,
 		type DuckPhase
 	} from '$lib/components/duck/triggers';
-	import type { DuckPose } from '$lib/figures';
-	import { Icon, RichText } from '$lib/modules';
+	import DuckChip from '$lib/components/duck/DuckChip.svelte';
 	import {
-		DEFAULT_WARDROBE,
-		readWardrobe,
-		saveWardrobe,
-		toggleAccessory,
-		type DuckAccessory
-	} from '$lib/figures/duck-wardrobe';
+		HIPSTER_OFF_LINE,
+		HIPSTER_ON_LINE,
+		createTapBurst,
+		pullDistance,
+		rubberBand,
+		swipeOutcome
+	} from '$lib/components/duck/gesture';
+	import { duckWardrobe } from '$lib/components/duck/wardrobe.svelte';
+	import type { DuckPose } from '$lib/figures';
+	import { BottomBar, Icon, IconButton, RichText, animate, type Animation } from '$lib/modules';
 	import { ScreenContextStore } from '$lib/memory';
 	import ArtifactOverlay from './ArtifactOverlay.svelte';
 	import TutorSpeech from './TutorSpeech.svelte';
 	import Dictation from './Dictation.svelte';
 	import type { TutorArtifact } from '$lib/api/types';
 
-	import ConnectionDialog from './ConnectionDialog.svelte';
-	import { advance, startCursor, type ScriptCursor } from './script';
+	import { topDrawer } from '$lib/components/shell/top-drawer.svelte';
+	const drawer = topDrawer();
+	$effect(() => drawer.registerSection(tutorControls));
+	import { advance, draftInput, startCursor, type DraftMode, type ScriptCursor } from './script';
 	import {
 		acceptsTurn,
 		requiresConsentRestart,
@@ -60,18 +64,20 @@
 		scenario: TutorScenario;
 		/** Only the visible session offers the pending whiteboard sketch. */
 		active: boolean;
+		/** Pulling the duck down leaves the fullscreen tutor. */
+		onleave?: () => void;
 	}
 
-	let { scenario, active }: Props = $props();
+	let { scenario, active, onleave }: Props = $props();
 
 	const tutorApp = getTutorAppContext();
 
 	/* Fixed lines of the duck (textredaktion-v2.md §3). */
-	const BOUNDARY_LINE = 'Das rechnest du. Was ist dein erster Schritt?';
-	const WAIT_LINE = 'Ich warte.';
-	const CLOSING_LINE = 'Für heute fertig.';
+	const BOUNDARY_LINE = 'Den Schritt machst du selbst – womit fängst du an?';
+	const WAIT_LINE = 'Alles klar, lass dir Zeit.';
+	const CLOSING_LINE = 'Alles klar – sitzt für heute.';
 
-	const EXAMPLE_REQUEST = 'Kannst du mir das an einem anderen Beispiel zeigen?';
+	const EXAMPLE_REQUEST = 'Zeigst du mir ein anderes Beispiel?';
 
 	// A trip to the whiteboard unmounts this page; the session for this scenario picks up again,
 	// unless the client changed meanwhile.
@@ -85,25 +91,27 @@
 	let live = $state<LiveTurn | null>(saved?.live ?? null);
 	let draft = $state(saved?.draft ?? '');
 	let confidence = $state<number | undefined>(saved?.confidence);
+	/* Free question or guess by default; only an explicit hand-in is graded (Didaktik #3). */
+	let mode = $state<DraftMode>(saved?.mode ?? 'message');
 	let announcement = $state('');
 	let reaction = $state<DuckPose | null>(null);
 	let speechLevel = $state(0);
 	let artifact = $state.raw<TutorArtifact | null>(null);
 	let expanded = $state(false),
-		panel = $state<'wardrobe' | 'history' | null>(null);
+		panel = $state<'history' | null>(null);
 	let listening = $derived(expanded && draft.length > 0);
 	let duck: HTMLButtonElement;
 	let field = $state<HTMLInputElement>();
 	let dragged = false,
-		origin = [0, 0];
-	let wardrobe = $state.raw({ ...DEFAULT_WARDROBE });
-	const labels = {
-		glasses: 'Brille',
-		campusOutfit: 'Campus-Outfit',
-		beanie: 'Mütze',
-		clubMate: 'Club-Mate'
-	};
-	const accessories = Object.keys(labels) as DuckAccessory[];
+		press: { id: number; x: number; y: number } | undefined;
+	/* Pull down to leave: the duck follows the finger with resistance, then springs back. */
+	let drop = $state(0),
+		spring: Animation | undefined;
+	/* Easter egg: three quick taps, or H on the focused duck, toggle the hipster look. */
+	const burst = createTapBurst();
+	let reactionCue = $state(0),
+		quip = $state(''),
+		quipTimer: ReturnType<typeof setTimeout> | undefined;
 	const screen = new ScreenContextStore();
 	let activity = $state(0);
 	function interaction() {
@@ -117,8 +125,9 @@
 		}, 30000);
 		return () => clearTimeout(timer);
 	});
-	onMount(() => {
-		wardrobe = readWardrobe();
+	onDestroy(() => {
+		spring?.stop();
+		clearTimeout(quipTimer);
 	});
 	$effect(() => {
 		screen.setScreen({
@@ -128,20 +137,63 @@
 			topic: scenario.title
 		});
 	});
-	function dress(key: DuckAccessory) {
-		wardrobe = toggleAccessory(wardrobe, key);
-		saveWardrobe(wardrobe);
+	function hipster() {
+		const on = duckWardrobe.toggleHipster();
+		reaction = on ? 'celebrate' : 'giggle';
+		reactionCue++;
+		quip = on ? HIPSTER_ON_LINE : HIPSTER_OFF_LINE;
+		announcement = quip;
+		clearTimeout(quipTimer);
+		quipTimer = setTimeout(() => (quip = ''), 3500);
+	}
+	function pressDuck(e: PointerEvent) {
+		if (e.button !== 0) return;
+		spring?.stop();
+		press = { id: e.pointerId, x: e.clientX, y: e.clientY };
+		dragged = false;
+	}
+	function moveDuck(e: PointerEvent) {
+		if (press?.id !== e.pointerId) return;
+		const dx = e.clientX - press.x,
+			dy = e.clientY - press.y;
+		if (Math.hypot(dx, dy) > 5) dragged = true;
+		drop = Math.abs(dy) > Math.abs(dx) ? rubberBand(pullDistance(dy, 'down')) : 0;
+	}
+	function releaseDuck(e: PointerEvent, cancelled = false) {
+		if (press?.id !== e.pointerId) return;
+		const outcome = cancelled
+			? 'rebound'
+			: swipeOutcome(e.clientX - press.x, e.clientY - press.y, 'down');
+		press = undefined;
+		if (outcome === 'commit') onleave?.();
+		spring = animate({
+			from: drop,
+			to: 0,
+			preset: 'carry',
+			restDelta: 0.5,
+			onUpdate: (value) => (drop = value)
+		});
+	}
+	function tapDuck(e: MouseEvent) {
+		if (e.detail && dragged) return;
+		const now = performance.now(),
+			// Taps of one quick burst never close the bar; the third one is the easter egg.
+			quick = burst.since(now) < 450;
+		if (burst.tap(now)) hipster();
+		else if (!expanded) void open();
+		else if (!quick) close(e.detail > 0);
 	}
 	async function open() {
 		expanded = true;
 		await tick();
 		field?.focus();
 	}
-	function close() {
+	/* Focus returns to the duck. After a tap it shows no focus mark: only the keyboard gets one. */
+	function close(byPointer = false) {
 		artifact = null;
 		expanded = false;
 		panel = null;
-		duck.focus();
+		duck.focus(byPointer ? { focusVisible: false } : undefined);
 	}
 	function escape(e: KeyboardEvent) {
 		if (
@@ -174,8 +226,8 @@
 		if (live?.status === 'streaming' && live.text) return live.text;
 		if (live && live.status !== 'streaming') {
 			return live.status === 'aborted'
-				? 'Abgebrochen. Der Zug ist eventuell schon gespeichert.'
-				: (live.problem?.message ?? 'Der Tutor hat nicht geantwortet.');
+				? 'Abgebrochen.'
+				: (live.problem?.message ?? 'Gerade keine Antwort – probier’s nochmal.');
 		}
 		if (!lastReply) return scenario.title;
 		if (lastReply.kind === 'wait') return WAIT_LINE;
@@ -188,7 +240,7 @@
 		const client = tutorApp.client;
 		untrack(() => {
 			if (boundClient && boundClient !== client) {
-				newSession(started ? 'Verbindung gewechselt. Eine neue Sitzung beginnt.' : undefined);
+				newSession(started ? 'Neue Verbindung, neue Runde.' : undefined);
 			}
 			boundClient = client;
 		});
@@ -209,6 +261,7 @@
 			live: current?.status === 'streaming' ? { ...current, status: 'aborted' } : current,
 			draft,
 			confidence,
+			mode,
 			boundClient: untrack(() => boundClient ?? tutorApp.client)
 		};
 		untrack(() => saveSession(scenario.id, snapshot));
@@ -313,7 +366,7 @@
 			}
 			fail(request, {
 				code: 'protocol',
-				message: 'Der Stream endete ohne Abschluss.',
+				message: 'Antwort unvollständig.',
 				retryable: true
 			});
 		} catch (error) {
@@ -325,7 +378,7 @@
 				request,
 				error instanceof ApiError
 					? error.problem
-					: { code: 'network', message: 'Der Tutor ist gerade nicht erreichbar.', retryable: true }
+					: { code: 'network', message: 'Gerade nicht erreichbar.', retryable: true }
 			);
 		} finally {
 			if (controller === turnController) controller = null;
@@ -344,7 +397,7 @@
 		) {
 			fail(request, {
 				code: 'protocol',
-				message: 'Die Antwort gehört zu einer anderen Anfrage.',
+				message: 'Antwort passte nicht zur Anfrage.',
 				retryable: false
 			});
 			return;
@@ -405,7 +458,7 @@
 	/** Leaves an uncertain turn behind safely: a fresh session starts at revision 0. */
 	function restart() {
 		const text = live?.learner.via === 'free' ? live.learner.text : undefined;
-		newSession('Neu begonnen. Der offene Zug bleibt in der alten Sitzung.');
+		newSession('Neue Runde gestartet.');
 		if (!draft.trim() && text !== undefined) draft = text;
 	}
 
@@ -417,11 +470,17 @@
 		event?.preventDefault();
 		const text = draft.trim();
 		if (!text || busy) return;
-		const input: TutorInput =
-			confidence === undefined ? { kind: 'message', text } : { kind: 'answer', text, confidence };
-		send(input, 'free');
+		send(draftInput(text, mode, confidence), 'free');
 		draft = '';
 		confidence = undefined;
+		mode = 'message';
+	}
+
+	/** The explicit hand-in switch; back to a question drops any confidence with it. */
+	function toggleAnswer() {
+		mode = mode === 'answer' ? 'message' : 'answer';
+		if (mode === 'message') confidence = undefined;
+		field?.focus();
 	}
 
 	function sendSketch() {
@@ -446,38 +505,67 @@
 </script>
 
 <svelte:window onkeydown={escape} />
+{#snippet tutorControls()}
+	<div class="tutor-drawer" role="group" aria-label="Thema">
+		<div class="choices">
+			{#each tutorScenarios as item (item.id)}<a
+					href="{resolve('/tutor')}?szenario={encodeURIComponent(item.id)}"
+					aria-current={item.id === scenario.id ? 'true' : undefined}
+				>
+					{#if item.id === scenario.id}<Icon name="check" />{/if}{item.shortLabel}
+				</a>{/each}
+			<a href="{resolve('/whiteboard')}?scenario={encodeURIComponent(scenario.id)}">Whiteboard</a>
+			{#if started}<button
+					type="button"
+					onclick={() => {
+						expanded = true;
+						panel = 'history';
+						drawer.close();
+					}}
+				>
+					Verlauf
+				</button>{/if}
+		</div>
+	</div>
+{/snippet}
 <article class="tutor-viewport" data-surface="paper" aria-label={scenario.title}>
 	<button
 		class="duck-button"
 		bind:this={duck}
 		aria-label="Mit der Ente sprechen"
+		aria-describedby="tutor-duck-help"
 		aria-expanded={expanded}
-		onpointerdown={(e) => {
-			origin = [e.clientX, e.clientY];
-			dragged = false;
+		onpointerdown={pressDuck}
+		onpointermove={moveDuck}
+		onpointerup={(e) => releaseDuck(e)}
+		onpointercancel={(e) => releaseDuck(e, true)}
+		onkeydown={(e) => {
+			if (e.key.toLowerCase() !== 'h' || e.metaKey || e.ctrlKey || e.altKey) return;
+			e.preventDefault();
+			hipster();
 		}}
-		onpointermove={(e) => {
-			if (e.buttons && Math.hypot(e.clientX - origin[0], e.clientY - origin[1]) > 5) dragged = true;
-		}}
-		onclick={(e) => {
-			if (e.detail && dragged) return;
-			if (expanded) close();
-			else void open();
-		}}
+		onclick={tapDuck}
 	>
-		<DuckStage
-			variant="fullscreen"
-			pose={duckPose}
-			idle={idleAllowed(
-				started,
-				!live && lastReply?.kind === 'tutor' && lastReply.move === 'abschliessen'
-			)}
-			interactive
-			{wardrobe}
-			{speechLevel}
-			onposedone={() => (reaction = null)}
-		/>
+		<span class="duck-body" style:translate={drop ? `0 ${drop}px` : undefined}>
+			<DuckStage
+				variant="fullscreen"
+				pose={duckPose}
+				cue={reactionCue}
+				idle={idleAllowed(
+					started,
+					!live && lastReply?.kind === 'tutor' && lastReply.move === 'abschliessen'
+				)}
+				interactive
+				wardrobe={duckWardrobe.current}
+				{speechLevel}
+				onposedone={() => (reaction = null)}
+			/>
+		</span>
 	</button>
+	<span id="tutor-duck-help" class="visually-hidden">
+		Antippen öffnet die Eingabe. Nach unten ziehen führt zurück.
+	</span>
+	{#if quip}<div class="quip"><DuckChip text={quip} /></div>{/if}
 	{#if expanded}
 		<div class="dock" oninput={interaction}>
 			{#if artifact}
@@ -489,31 +577,8 @@
 						void open();
 					}}
 				/>
-			{:else if panel === 'wardrobe'}
-				<div class="drawer" role="group" aria-label="Garderobe">
-					<label>
-						Szenario
-						<select
-							value={scenario.id}
-							onchange={(event) =>
-								goto(
-									resolve('/tutor') + '?szenario=' + encodeURIComponent(event.currentTarget.value)
-								)}
-						>
-							{#each tutorScenarios as scenario (scenario.id)}
-								<option value={scenario.id}>{scenario.shortLabel}</option>
-							{/each}
-						</select>
-					</label>
-					{#each accessories as key (key)}<button
-							aria-pressed={wardrobe[key]}
-							onclick={() => dress(key)}
-						>
-							{labels[key]}
-						</button>{/each}
-				</div>
 			{:else if panel === 'history'}
-				<div class="drawer history">
+				<div class="history">
 					<Transcript
 						{entries}
 						{live}
@@ -530,73 +595,53 @@
 								onlevel={(v) => (speechLevel = v)}
 							/>{/key}{/if}
 				</div>{/if}
-			{#if !artifact}
-				<nav aria-label="Tutor bedienen">
-					<a href={resolve('/')} aria-label="Zur Startseite" title="Startseite">
-						<Icon name="home" />
-					</a>
-					<button
-						aria-expanded={panel === 'wardrobe'}
-						aria-label="Garderobe"
-						title="Garderobe"
-						onclick={() => (panel = panel === 'wardrobe' ? null : 'wardrobe')}
-					>
-						<Icon name="sliders" />
-					</button>
-					<a
-						href="{resolve('/whiteboard')}?scenario={encodeURIComponent(scenario.id)}"
-						aria-label="Whiteboard"
-						title="Whiteboard"
-					>
-						<Icon name="pen" />
-					</a>
-					{#if started}<button
-							aria-expanded={panel === 'history'}
-							aria-label="Verlauf"
-							title="Verlauf"
-							onclick={() => (panel = panel === 'history' ? null : 'history')}
-						>
-							<Icon name="book" />
-						</button>{/if}
-					<ConnectionDialog
-						shareWithApi={tutorApp.shareWithApi}
-						onconsent={(enabled) => (tutorApp.shareWithApi = enabled)}
-					/>
-				</nav>
-			{/if}
-			{#if sketch}<button disabled={busy} onclick={sendSketch}>Skizze senden</button>{/if}
 			<form onsubmit={sendDraft}>
-				<input
-					bind:this={field}
-					name="draft"
-					aria-label="Deine Nachricht"
-					placeholder="Frag die Ente …"
-					autocomplete="off"
-					enterkeyhint="send"
-					bind:value={draft}
-				/>
-				<Dictation
-					ontext={(value) => {
-						draft = [draft, value].filter(Boolean).join(' ');
-						field?.focus();
-					}}
-				/>
-				{#if live}<button type="button" onclick={primary}>
-						{live.status === 'streaming'
-							? 'Abbrechen'
-							: needsRestart
-								? 'Neue Sitzung beginnen'
-								: rejected
-									? 'Verwerfen'
-									: 'Abgleichen'}
-					</button>
-				{:else}<button
-						class="send"
-						aria-label="Senden"
-						disabled={!draft.trim() || tutorApp.switching}
-					>
-						<Icon name="arrow-up" />
-					</button>{/if}
+				<BottomBar reserveDuck={false} fixed={false} class="input-bar">
+					{#if sketch}<IconButton
+							icon="pen"
+							label="Skizze senden"
+							disabled={busy}
+							onclick={sendSketch}
+						/>{/if}
+					{#if started}<IconButton
+							icon="check"
+							label={mode === 'answer' ? 'Als Frage senden' : 'Als Antwort abgeben'}
+							active={mode === 'answer'}
+							class="mode"
+							onclick={toggleAnswer}
+						/>{/if}
+					<input
+						bind:this={field}
+						name="draft"
+						aria-label={mode === 'answer' ? 'Deine Antwort' : 'Deine Nachricht'}
+						placeholder={mode === 'answer' ? 'Deine Antwort …' : 'Was gibt’s?'}
+						autocomplete="off"
+						enterkeyhint="send"
+						bind:value={draft}
+					/>
+					<Dictation
+						ontext={(value) => {
+							draft = [draft, value].filter(Boolean).join(' ');
+							field?.focus();
+						}}
+					/>
+					{#if live}<button type="button" class="state" onclick={primary}>
+							{live.status === 'streaming'
+								? 'Abbrechen'
+								: needsRestart
+									? 'Neu starten'
+									: rejected
+										? 'Verwerfen'
+										: 'Nochmal'}
+						</button>
+					{:else}<IconButton
+							icon="arrow-up"
+							label={mode === 'answer' ? 'Antwort abgeben' : 'Senden'}
+							class="send"
+							disabled={!draft.trim() || tutorApp.switching}
+							onclick={() => sendDraft()}
+						/>{/if}
+				</BottomBar>
 			</form>
 		</div>{/if}
 	<p class="visually-hidden" aria-live="polite">{announcement}</p>
@@ -605,7 +650,7 @@
 <style>
 	.tutor-viewport {
 		position: relative;
-		width: 100vw;
+		width: 100%;
 		height: 100dvh;
 		overflow: hidden;
 		color: var(--text);
@@ -615,7 +660,7 @@
 	.duck-button {
 		position: absolute;
 		inset: 0;
-		width: 100vw;
+		width: 100%;
 		height: 100dvh;
 		max-inline-size: none;
 		padding: 0;
@@ -623,108 +668,153 @@
 		background: transparent;
 		cursor: grab;
 		touch-action: none;
+		-webkit-tap-highlight-color: transparent;
 	}
 	.duck-button:active {
 		cursor: grabbing;
 	}
+	/* No ring on the duck: a tap shows nothing, and the keyboard focus is one short line below
+	   the figure, never across face, glasses or wings. */
+	.duck-button:focus,
 	.duck-button:focus-visible {
-		outline: 2px solid var(--focus);
-		outline-offset: -4px;
+		outline: none;
 	}
+	.duck-button:focus-visible::after {
+		content: '';
+		position: absolute;
+		inset-block-end: calc(var(--duck-bottom) + var(--space-m));
+		inset-inline-start: 50%;
+		inline-size: min(8rem, 30vw);
+		block-size: var(--focus-width);
+		translate: -50% 0;
+		border-radius: var(--radius-pill);
+		background: var(--focus);
+		pointer-events: none;
+	}
+	.duck-body {
+		display: block;
+		height: 100%;
+	}
+	.quip {
+		position: absolute;
+		top: calc(var(--shell-edge) + var(--hit) + var(--space-m));
+		left: 50%;
+		translate: -50% 0;
+		pointer-events: none;
+	}
+	/* One column above the bottom edge: answer, then the single 64 px input bar. */
 	.dock {
 		position: absolute;
-		bottom: max(1rem, env(safe-area-inset-bottom));
+		bottom: var(--duck-bottom);
 		left: 50%;
 		transform: translateX(-50%);
-		width: min(36rem, calc(100% - 2rem));
+		width: min(36rem, calc(100% - 2 * var(--space-m)));
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
-		max-height: calc(100% - 2rem);
+		gap: var(--space-s);
+		max-height: calc(100% - var(--duck-bottom) - var(--bar));
 		overflow: auto;
 	}
-	nav,
-	.drawer,
 	.response,
-	form {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
+	.history {
+		background: var(--popup-duck-bg);
+		color: var(--popup-text);
+		backdrop-filter: blur(14px);
+		border-radius: var(--radius-option);
+		padding: var(--space-s) var(--space-m);
+		overflow: auto;
 	}
-	nav {
-		justify-content: center;
-		flex-wrap: wrap;
+	.response p {
+		margin: 0;
+		overflow-wrap: anywhere;
 	}
-	nav a,
-	.dock button {
-		display: inline-grid;
-		place-items: center;
+	.dock .state {
+		flex: none;
 		border: 0;
 		border-radius: var(--radius-pill);
-		min-height: 44px;
-		min-width: 44px;
-		padding: 0 0.75rem;
+		min-height: var(--hit);
+		padding: 0 var(--space-m);
 		background: var(--card);
 		color: var(--text);
 		font: inherit;
 		cursor: pointer;
 	}
-	.drawer select {
-		min-height: var(--hit);
-		font: inherit;
-		color: var(--text);
-		background: var(--card);
-		border: var(--hairline-width) solid var(--hairline);
-		border-radius: var(--radius-option);
-		margin-inline-start: var(--space-s);
-	}
-	.drawer,
-	.response {
-		background: var(--surface);
-		border-radius: var(--radius-option);
-		padding: 0.5rem;
-		flex-wrap: wrap;
-		overflow: auto;
-	}
-	.drawer {
-		justify-content: center;
-	}
-	.drawer button[aria-pressed='true'],
-	.dock .send {
-		background: var(--action);
-		color: var(--action-text);
-	}
-	.history {
-		display: block;
-	}
-	.response {
-		flex-wrap: nowrap;
-	}
-	.response p {
-		margin: 0;
-		flex: 1;
-		min-width: 0;
-		overflow-wrap: anywhere;
-	}
+	/* The shared 64 px BottomBar as one pill: same bar and button language as every page. */
 	.dock form {
-		position: relative;
 		flex: none;
-		height: 56px;
-		padding: 6px;
+	}
+	.dock :global(.input-bar) {
+		gap: var(--step-1);
+		padding-inline: var(--step-2);
 		box-sizing: border-box;
-		background: var(--card);
+		background: var(--popup-bg);
+		backdrop-filter: blur(18px);
 		border-radius: var(--radius-pill);
+	}
+	/* The whole pill takes the focus ring, never a square box inside it. */
+	.dock form:has(input:focus-visible) :global(.input-bar) {
+		outline: var(--focus-width) solid var(--focus);
+		outline-offset: 2px;
 	}
 	.dock input {
 		flex: 1;
 		min-width: 0;
+		align-self: stretch;
 		border: 0;
 		background: transparent;
 		color: inherit;
 		font: inherit;
-		padding-inline: 1rem;
+		padding-inline: var(--space-s);
 	}
-	.send:disabled {
-		opacity: 0.55;
+	.dock input:focus-visible {
+		outline: none;
+	}
+	.dock :global(.send) {
+		background: var(--action);
+		color: var(--action-text);
+	}
+	/* Locked: sunk and muted, never a faded key. */
+	.dock :global(.send:disabled) {
+		background: var(--well);
+		color: var(--text-muted);
+		opacity: 1;
+		cursor: not-allowed;
+	}
+	.dock :global(.mode[aria-pressed='true']) {
+		background: var(--duck-accent);
+		color: var(--palette-ink);
+		box-shadow: none;
+	}
+
+	/* Drawer section (rendered in the top edge drawer). */
+	.tutor-drawer {
+		display: block;
+	}
+	.choices {
+		display: flex;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		scrollbar-width: none;
+		gap: var(--space-s);
+	}
+	.choices a,
+	.choices button {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-s);
+		min-height: var(--hit);
+		padding-inline: var(--space-m);
+		border: 0;
+		border-radius: var(--radius-pill);
+		background: var(--card);
+		color: var(--text);
+		font: inherit;
+		text-decoration: none;
+		cursor: pointer;
+	}
+	.choices [aria-current='true'] {
+		background: var(--mark);
+		color: var(--mark-text);
 	}
 </style>

@@ -1,0 +1,102 @@
+[data-layout='canvas'] {
+	height: 100dvh;
+	overflow: clip;
+}
+[data-layout='stage'] {
+	min-height: 100dvh;
+	display: grid;
+	align-content: center;
+}
+[data-layout='feed'] {
+	padding-block-end: calc(var(--duck-clearance) + var(--space-m));
+	min-height: 100dvh;
+}
+@media (max-width: 63.99rem) {
+	main[data-layout='feed']:not(:has([data-layout='stage'])) {
+		height: calc(100dvh - var(--duck-clearance));
+		min-height: 0;
+		padding-block-end: 0;
+		overflow-y: auto;
+		overflow-x: clip;
+		overscroll-behavior-y: contain;
+		-webkit-overflow-scrolling: touch;
+		border-bottom: var(--hairline-width) solid var(--hairline);
+	}
+}
+[data-layout='feed'] .area-content {
+	max-inline-size: var(--content-width);
+	margin-inline: auto;
+}
+[data-bottom-bar] {
+	display: flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	height: var(--bottom-bar-height);
+}
+[data-media] {
+	display: block;
+	object-fit: cover;
+	margin: 0;
+}
+[data-media='bleed'],
+[data-media='dock-top'],
+[data-media='dock-bottom'] {
+	width: 100%;
+	grid-column: 1/-1;
+}
+[data-media='bleed'] {
+	height: 100%;
+}
+[data-media='dock-top'] {
+	align-self: start;
+}
+[data-media='dock-bottom'] {
+	align-self: end;
+}
+[data-media='dock-left'] {
+	justify-self: start;
+}
+[data-media='dock-right'] {
+	justify-self: end;
+}
+body .sketch-sheet {
+	inset-block-end: var(--duck-clearance);
+	max-block-size: calc(100dvh - var(--duck-clearance) - var(--bar));
+	background: var(--popup-bg);
+	backdrop-filter: blur(14px);
+	z-index: var(--z-popup);
+}
+
+main[data-layout] :is(.tool-dock, .tutor-line, .stage-leave) {
+	background: var(--popup-bg);
+	color: var(--popup-text);
+	backdrop-filter: blur(14px);
+}
+
+/* On a tablet the opened tools share the trigger's row. The tool strip scrolls
+   horizontally when a return action or the tutor needs the remaining space. */
+@media (min-width: 32rem) {
+	main[data-layout] .tool-control:has(.tool-dock) {
+		flex: 1;
+		min-width: 0;
+		align-items: center;
+		gap: var(--space-s);
+	}
+	main[data-layout] .tool-dock {
+		position: relative;
+		inset: auto;
+		min-width: 0;
+		overflow-x: auto;
+	}
+	main[data-layout] .board-bottom:has(.tool-dock) .board-note {
+		display: none;
+	}
+}
+
+.info-band {
+	width: 100%;
+	margin: 0;
+	padding: var(--space-m) var(--gutter);
+	background: var(--well);
+	border: 0;
+}

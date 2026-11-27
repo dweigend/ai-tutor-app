@@ -8,7 +8,11 @@ registerHooks({
 		if (specifier === '$lib/figures') {
 			return nextResolve(new URL('../../figures/poses.ts', import.meta.url).href, context);
 		}
-		if (specifier.startsWith('.') && specifier.endsWith('.js')) {
+		if (
+			specifier.startsWith('.') &&
+			specifier.endsWith('.js') &&
+			context.parentURL?.includes('/src/lib/')
+		) {
 			return nextResolve(specifier.replace(/\.js$/, '.ts'), context);
 		}
 		return nextResolve(specifier, context);
@@ -84,4 +88,56 @@ test('legacy tutor triggers remain supported', () => {
 test('v3 tickles and glances finish once while idle is safe', () => {
 	assert.ok(isOneShot('giggle') && isOneShot('look_around'));
 	assert.equal(isOneShot('idle'), false);
+});
+
+const { SWIPE_THRESHOLD, createTapBurst, pullDistance, rubberBand, swipeOutcome } =
+	await import('./gesture.js');
+
+test('Ziehen: kurzer Druck ist ein Tippen, nur genug Weg in Zielrichtung wechselt die Ansicht', () => {
+	assert.equal(swipeOutcome(2, -3, 'up'), 'tap');
+	assert.equal(swipeOutcome(0, -SWIPE_THRESHOLD, 'up'), 'commit');
+	assert.equal(swipeOutcome(0, -(SWIPE_THRESHOLD - 1), 'up'), 'rebound');
+	assert.equal(swipeOutcome(0, SWIPE_THRESHOLD * 2, 'up'), 'rebound');
+	assert.equal(swipeOutcome(0, SWIPE_THRESHOLD, 'down'), 'commit');
+	// A sideways drag turns the duck and never leaves the page.
+	assert.equal(swipeOutcome(120, 80, 'down'), 'rebound');
+});
+
+test('Gummiband folgt dem Finger, bremst zunehmend und bleibt unter der Grenze', () => {
+	assert.equal(rubberBand(0), 0);
+	assert.equal(rubberBand(Number.NaN), 0);
+	assert.ok(rubberBand(-40) < 0 && rubberBand(-40) > -40);
+	assert.ok(rubberBand(10) > 7, 'kleine Wege laufen fast eins zu eins mit');
+	assert.ok(rubberBand(10_000, 160) < 160);
+	assert.ok(rubberBand(200) - rubberBand(100) < rubberBand(100) - rubberBand(0));
+	assert.equal(pullDistance(30, 'up'), 0);
+	assert.equal(pullDistance(-30, 'up'), -30);
+	assert.equal(pullDistance(-30, 'down'), 0);
+});
+
+test('Easter Egg: drei schnelle Tipper schalten genau einmal, langsame nie', () => {
+	const burst = createTapBurst(3, 900);
+	assert.deepEqual(
+		[0, 200, 400, 600].map((t) => burst.tap(t)),
+		[false, false, true, false]
+	);
+	const slow = createTapBurst(3, 900);
+	assert.deepEqual(
+		[0, 600, 1200, 1800].map((t) => slow.tap(t)),
+		[false, false, false, false]
+	);
+	assert.equal(slow.since(2000), 200);
+	slow.reset();
+	assert.equal(slow.since(2000), Infinity);
+});
+
+test('the ink line thins with the canvas, so the 72 px corner duck keeps open lenses', async () => {
+	const { duckOutlineWidth, isMiniDuck } = await import('../../figures/duck-halftone-shader.js');
+	assert.equal(duckOutlineWidth(1280, 900), 1.5);
+	assert.equal(duckOutlineWidth(240, 240), 1.5);
+	assert.ok(duckOutlineWidth(72, 72) < 0.5);
+	assert.ok(duckOutlineWidth(72, 72) > 0);
+	assert.equal(duckOutlineWidth(0, 0), 1.5);
+	assert.equal(isMiniDuck(72, 72), true);
+	assert.equal(isMiniDuck(390, 844), false);
 });

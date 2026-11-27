@@ -117,17 +117,9 @@
 		<div class="reading-progress" data-surface="paper" aria-hidden="true">
 			<span bind:this={progress}></span>
 		</div>
-		<Opener
-			tone={article.tone}
-			question={article.question}
-			art={article.art}
-			line="{form} · {article.kicker}"
-			level={1}
-		>
-			{#snippet beforeArt()}
-				<ReadAloud.Segment as="p" class="article-deck">{article.deck}</ReadAloud.Segment>
-				<EssayAudioBar readingMinutes={article.readingMinutes} />
-			{/snippet}
+		<Opener question={article.question} art={article.art} {form}>
+			<ReadAloud.Segment as="p" class="article-deck">{article.deck}</ReadAloud.Segment>
+			<EssayAudioBar readingMinutes={article.readingMinutes} />
 		</Opener>
 
 		<div class="article-body" data-surface="paper">
@@ -168,7 +160,7 @@
 								{/if}
 								{#each article.inlineImages.filter((image) => image.after === block.paragraph.id) as image (image.motif)}
 									<figure class="article-image">
-										<div class="article-image-motif">
+										<div class="article-image-motif" data-media="dock-top">
 											<MotifImage motif={image.motif} sizes="(min-width: 40rem) 38rem, 100vw" />
 										</div>
 										<figcaption>{image.caption}</figcaption>
@@ -176,10 +168,10 @@
 								{/each}
 							{:else if block.kind === 'facts'}
 								<aside class="article-facts" aria-labelledby="{section.id}-facts">
-									<p class="m-label article-facts-title" id="{section.id}-facts">Auf einen Blick</p>
+									<p class="visually-hidden" id="{section.id}-facts">Eckdaten</p>
 									<Readout.Facts
 										facts={{ kind: 'cells', cells: block.facts.cells }}
-										label="Auf einen Blick"
+										label="Eckdaten"
 									/>
 								</aside>
 							{:else}
@@ -207,7 +199,7 @@
 <style>
 	/* The foot buffer belongs to the page, so an article without a way on keeps it too. */
 	.article-body {
-		padding-block: var(--step-6) 96px;
+		padding-block: var(--space-l) calc(var(--duck-clearance) + var(--space-l));
 	}
 
 	/* One column of running text, 17px Archivo, on wide screens kept in the middle. */
@@ -227,9 +219,8 @@
 		scroll-margin-block-start: var(--bar);
 	}
 
-	/* Margin, not padding: the speaking rule of the segment then sits in the gutter, on screen. */
 	:global(.article-deck) {
-		margin: 0 var(--gutter);
+		margin: 0;
 		font-size: var(--type-body);
 		line-height: var(--line-body);
 	}
@@ -350,10 +341,6 @@
 		gap: var(--step-2);
 		padding-block: var(--step-3);
 		border-block: var(--hairline-width) solid var(--hairline);
-	}
-
-	.article-facts-title {
-		margin: 0;
 	}
 
 	.article-end {

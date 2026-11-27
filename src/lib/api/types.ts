@@ -21,7 +21,51 @@ export type TutorMoveKind =
 
 export type CourseRef = { courseId: string; courseVersion: string };
 export type TaskRef = CourseRef & { taskId: string };
-export type CheckResult = 'korrekt' | 'teilweise' | 'falsch';
+/**
+ * What a check says about one attempt. `nicht_pruefbar_oder_alternativweg` is the fourth evidence
+ * state: a sketch or a free alternative way was received, but no automatic rule can judge it. It is
+ * neither partial nor correct; it never counts as mastery and never carries learning evidence.
+ */
+export type CheckResult = 'korrekt' | 'teilweise' | 'falsch' | 'nicht_pruefbar_oder_alternativweg';
+
+/** All check results in contract order; HTTP validation and tests read this list. */
+export const CHECK_RESULTS = [
+	'korrekt',
+	'teilweise',
+	'falsch',
+	'nicht_pruefbar_oder_alternativweg'
+] as const satisfies readonly CheckResult[];
+
+/**
+ * Four-level evidence the live backend may send next to `result`. When present it is authoritative:
+ * `nicht_pruefbar_oder_alternativweg` stays neutral even if a legacy `result` says `teilweise`.
+ */
+export type EvidenceLevel =
+	'geprueft_korrekt' | 'teilwissen' | 'nicht_pruefbar_oder_alternativweg' | 'nachgewiesener_fehler';
+
+export const EVIDENCE_LEVELS = [
+	'geprueft_korrekt',
+	'teilwissen',
+	'nicht_pruefbar_oder_alternativweg',
+	'nachgewiesener_fehler'
+] as const satisfies readonly EvidenceLevel[];
+
+const RESULT_OF_LEVEL: Record<EvidenceLevel, CheckResult> = {
+	geprueft_korrekt: 'korrekt',
+	teilwissen: 'teilweise',
+	nicht_pruefbar_oder_alternativweg: 'nicht_pruefbar_oder_alternativweg',
+	nachgewiesener_fehler: 'falsch'
+};
+
+/** The check result an attempt stands for; a sent evidence level wins over the legacy result. */
+export function effectiveResult(result: CheckResult, evidenceLevel?: EvidenceLevel): CheckResult {
+	return evidenceLevel ? RESULT_OF_LEVEL[evidenceLevel] : result;
+}
+
+/** Only `korrekt` is mastery evidence; the other three results never are. */
+export function countsAsMastery(result: CheckResult): boolean {
+	return result === 'korrekt';
+}
 export type EvidenceKind = 'vorhersage' | 'anwendung' | 'fehlerfund' | 'transfer';
 
 export interface WhiteboardSnapshot {
@@ -144,10 +188,13 @@ export interface TutorialCheckResponse {
 	kind: 'tutorial';
 	requestId: string;
 	result: CheckResult;
+	evidenceLevel?: EvidenceLevel;
 	feedback: string;
 }
 
 export interface LearningEvidence {
+	evidenceLevel?: EvidenceLevel;
+	result?: CheckResult;
 	id: string;
 	attemptId?: string;
 	taskId: string;
@@ -157,11 +204,38 @@ export interface LearningEvidence {
 	recordedAt: string;
 }
 
+/** Same moment, whatever the notation: `…Z` and `…+00:00` are one time. */
+function sameTime(left: string, right: string): boolean {
+	const a = Date.parse(left);
+	return Number.isFinite(a) && a === Date.parse(right);
+}
+
+/**
+ * The attempts a piece of evidence can belong to: the one its `attemptId` names; without one, the
+ * attempt its own ID starts with (`<attemptId>:1`); for older evidence the same recorded time.
+ */
+export function evidenceAttemptId(
+	item: LearningEvidence,
+	recentPractice: readonly Pick<
+		ActivityMirrorSnapshot['recentPractice'][number],
+		'id' | 'itemId' | 'recordedAt'
+	>[]
+): string | undefined {
+	const sameTask = recentPractice.filter((practice) => practice.itemId === item.taskId);
+	if (item.attemptId) return sameTask.find((practice) => practice.id === item.attemptId)?.id;
+	const byPrefix = sameTask.filter((practice) => item.id.startsWith(practice.id + ':'));
+	const matches = byPrefix.length
+		? byPrefix
+		: sameTask.filter((practice) => sameTime(practice.recordedAt, item.recordedAt));
+	return matches.length === 1 ? matches[0].id : undefined;
+}
+
 export interface ExerciseAttemptResponse {
 	kind: 'exercise';
 	requestId: string;
 	attemptId: string;
 	result: CheckResult;
+	evidenceLevel?: EvidenceLevel;
 	feedback: string;
 	evidence: LearningEvidence[];
 }
@@ -173,6 +247,7 @@ export interface ActivityMirrorSnapshot {
 		id: string;
 		itemId: string;
 		result: CheckResult;
+		evidenceLevel?: EvidenceLevel;
 		recordedAt: string;
 	}[];
 	evidence: LearningEvidence[];

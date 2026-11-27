@@ -8,14 +8,13 @@
 	let data = $derived(learningMemory.current);
 </script>
 
-<section aria-label="Mein Gedächtnis">
-	<h3>Gesehen &amp; Lesezeit</h3>
+<section aria-label="Notizen & Verlauf">
+	<h3>Verlauf</h3>
 	{#each data.recentHistory as entry (entry.id)}
 		<div class="row">
 			<span>
 				{entry.title ?? entry.route}<small>
-					{Math.floor(data.dwellStats.find((stat) => stat.id === entry.id)?.activeSeconds ?? 0)} s aktiv
-					· {entry.visits} Besuche
+					{Math.floor(data.dwellStats.find((stat) => stat.id === entry.id)?.activeSeconds ?? 0)} s · {entry.visits}×
 				</small>
 			</span>
 			<button
@@ -25,19 +24,19 @@
 				Löschen
 			</button>
 		</div>
-	{:else}<p>Noch keine Inhalte besucht.</p>{/each}
-	<h3>Erkannte Interessen</h3>
+	{:else}<p>Noch leer.</p>{/each}
+	<h3>Themen</h3>
 	{#each data.inferredInterests as entry (entry.topicId)}
 		<div class="row">
 			<span>{entry.topicId}</span><button
-				aria-label={'Interesse löschen: ' + entry.topicId}
+				aria-label={'Thema löschen: ' + entry.topicId}
 				onclick={() => learningMemory.deleteEntry('interest', entry.topicId)}
 			>
 				Löschen
 			</button>
 		</div>
-	{:else}<p>Noch keine Interessen erkannt.</p>{/each}
-	<h3>Gespeicherte Fragen &amp; Notizen</h3>
+	{:else}<p>Noch leer.</p>{/each}
+	<h3>Notizen</h3>
 	{#each data.savedNotesAndQuestions as entry (entry.id)}
 		<div class="row">
 			<span>
@@ -54,10 +53,10 @@
 				Löschen
 			</button>
 		</div>
-	{:else}<p>Noch keine Fragen oder Notizen gespeichert.</p>{/each}
+	{:else}<p>Noch leer.</p>{/each}
 	<label>
-		<input type="checkbox" checked={share} onchange={(e) => onshare(e.currentTarget.checked)} /> Kontext
-		mit Live-API teilen
+		<input type="checkbox" checked={share} onchange={(e) => onshare(e.currentTarget.checked)} /> Beim
+		Fragen mit dem Tutor teilen
 	</label>
 	<button class="clear" onclick={onclear}>Alles löschen</button>
 </section>

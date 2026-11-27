@@ -122,7 +122,9 @@ export function spectrumChoice(
 }
 
 // ---------------------------------------------------------------------------------------------
-// ConfidenceStrip: four flush segments plus "ohne Angabe". undefined = not chosen yet.
+// ConfidenceStrip: one − … + slider with a marked middle (V4-5, sketch R3). Five detents −2 … 2:
+// left is unsure (25, 50), the middle is "ohne Angabe" (null), right is sure (75, 100).
+// undefined = not touched yet; the grip then rests in the middle as well.
 // ---------------------------------------------------------------------------------------------
 
 export type Confidence = Certainty | null | undefined;
@@ -133,6 +135,37 @@ const CONFIDENCE_WORDS: Record<Certainty, string> = {
 	75: 'ziemlich sicher',
 	100: 'sicher'
 };
+
+export const CONFIDENCE_DETENTS = [-2, -1, 0, 1, 2] as const;
+
+const DETENT_CONFIDENCE: Record<number, Certainty | null> = {
+	[-2]: 25,
+	[-1]: 50,
+	0: null,
+	1: 75,
+	2: 100
+};
+
+/** Slider detent of a confidence: the middle (0) for "ohne Angabe" and for not chosen yet. */
+export function confidenceDetent(confidence: Confidence): number {
+	switch (confidence) {
+		case 25:
+			return -2;
+		case 50:
+			return -1;
+		case 75:
+			return 1;
+		case 100:
+			return 2;
+		default:
+			return 0;
+	}
+}
+
+/** Confidence of a slider position; the nearest detent decides, the middle is null. */
+export function detentConfidence(position: number): Certainty | null {
+	return DETENT_CONFIDENCE[nearestDetent(position, CONFIDENCE_DETENTS)];
+}
 
 /** Rating level 0–4 of a confidence; ohne Angabe and not chosen are 0. */
 export function confidenceLevel(confidence: Confidence): number {

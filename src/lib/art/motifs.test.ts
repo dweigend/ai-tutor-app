@@ -14,10 +14,10 @@ registerHooks({
 
 const { MOTIFS, MOTIF_WIDTHS, motifFallback, motifSource, motifSrcset } =
 	await import('./motifs.js');
-const { areas, homeOffers } = await import('../navigation.js');
+const { areas, homeTiles } = await import('../navigation.js');
 
 test('navigation motifs resolve to complete responsive image sets and a WebP fallback', () => {
-	for (const link of [...areas, ...homeOffers]) {
+	for (const link of [...areas, ...homeTiles]) {
 		if (link.art) assert.ok(Object.hasOwn(MOTIFS, link.art), link.art);
 	}
 	for (const id of Object.keys(MOTIFS) as (keyof typeof MOTIFS)[]) {

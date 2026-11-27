@@ -98,3 +98,27 @@ test('Eine neue Sitzung behält den neuen Entwurf und stellt den alten Text nur 
 		assert.equal(state.draft, expected);
 	}
 });
+
+test('Eine freie Frage bleibt eine Nachricht, auch mit gesetzter Sicherheit; nur der Antwortmodus wird bewertet', async () => {
+	const scriptHooks = registerHooks({
+		resolve(specifier, context, next) {
+			return next(specifier === './script.js' ? './script.ts' : specifier, context);
+		}
+	});
+	const { draftInput } = await import('./script.js');
+	scriptHooks.deregister();
+	assert.deepEqual(draftInput('Warum?', 'message'), { kind: 'message', text: 'Warum?' });
+	assert.deepEqual(draftInput('Warum?', 'message', 80), { kind: 'message', text: 'Warum?' });
+	assert.deepEqual(draftInput('42', 'answer'), { kind: 'answer', text: '42' });
+	assert.deepEqual(draftInput('42', 'answer', 60), { kind: 'answer', text: '42', confidence: 60 });
+
+	// The page sends through draftInput with its explicit mode and starts each line as a question.
+	const source = readFileSync(new URL('./TutorSession.svelte', import.meta.url), 'utf8');
+	const sendDraft = source.slice(
+		source.indexOf('function sendDraft('),
+		source.indexOf('function sendSketch(')
+	);
+	assert.match(sendDraft, /draftInput\(text, mode, confidence\)/);
+	assert.match(sendDraft, /mode = 'message'/);
+	assert.doesNotMatch(sendDraft, /confidence === undefined \?/);
+});

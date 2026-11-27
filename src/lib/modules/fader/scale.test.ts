@@ -13,9 +13,12 @@ registerHooks({
 });
 
 const {
+	CONFIDENCE_DETENTS,
 	SPECTRUM_DETENTS,
+	confidenceDetent,
 	confidenceLevel,
 	confidenceText,
+	detentConfidence,
 	evenDetents,
 	levelConfidence,
 	magnetPosition,
@@ -101,4 +104,21 @@ test('untouched middle is locked, a deliberately set middle is an abstention', (
 	assert.equal(spectrumCommittable(true), true);
 	assert.deepEqual(spectrumChoice(0, true), { answer: null, confidence: null });
 	assert.deepEqual(spectrumChoice(3, true), { answer: 'ja', confidence: 75 });
+});
+
+test('confidence slider: − is unsure, the marked middle is "ohne Angabe", + is sure', () => {
+	assert.deepEqual(
+		CONFIDENCE_DETENTS.map((detent) => detentConfidence(detent)),
+		[25, 50, null, 75, 100]
+	);
+	// Untouched and "ohne Angabe" both rest in the middle.
+	assert.equal(confidenceDetent(undefined), 0);
+	assert.equal(confidenceDetent(null), 0);
+	for (const confidence of [25, 50, 75, 100] as const) {
+		assert.equal(detentConfidence(confidenceDetent(confidence)), confidence);
+	}
+	// A free grip position reads as its nearest detent.
+	assert.equal(detentConfidence(0.4), null);
+	assert.equal(detentConfidence(1.6), 100);
+	assert.equal(detentConfidence(-0.6), 50);
 });

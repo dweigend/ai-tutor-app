@@ -38,7 +38,9 @@ const {
 	resolveTutorApiConfig,
 	switchTutorApiMode,
 	isTutorArtifact,
-	ApiError
+	ApiError,
+	CHECK_RESULTS,
+	countsAsMastery
 } = await import('./index.js');
 const { defaultFixtures, demoCourse, demoTask, demoTutorialId, demoCheckId } =
 	await import('./defaultFixtures.js');
@@ -655,6 +657,53 @@ test('HTTP: Übungsbelege gehören zum Versuch oder stammen aus einem Altbestand
 	assert.equal(legacyResult.evidence[0]?.attemptId, undefined);
 });
 
+test('Vertrag: der 4. Evidenzzustand ist gültig, aber nie Meisterschaft', async () => {
+	assert.deepEqual(
+		[...CHECK_RESULTS],
+		['korrekt', 'teilweise', 'falsch', 'nicht_pruefbar_oder_alternativweg']
+	);
+	assert.deepEqual(
+		CHECK_RESULTS.filter((result) => countsAsMastery(result)),
+		['korrekt']
+	);
+
+	const request: ExerciseAttemptRequest = {
+		kind: 'exercise',
+		requestId: 'exercise-alternative-way',
+		task: demoTask,
+		answer: { kind: 'choice', optionIds: ['2x'] }
+	};
+	const received = {
+		kind: 'exercise',
+		requestId: request.requestId,
+		attemptId: 'attempt-alternative',
+		result: 'nicht_pruefbar_oder_alternativweg',
+		feedback: 'Eingereicht. Vergleiche deinen Weg mit der Musterlösung.',
+		evidence: []
+	};
+	const client = new HttpTutorClient('/', async () => Response.json(received));
+	const result = await client.evaluateExercise(request);
+	assert.equal(result.result, 'nicht_pruefbar_oder_alternativweg');
+	assert.deepEqual(result.evidence, []);
+
+	// Learning evidence on a result that is not mastery breaks the contract.
+	const evidence = {
+		id: 'ev-1',
+		attemptId: 'attempt-alternative',
+		taskId: demoTask.taskId,
+		learningGoalId: 'lz-lernen-als-optimierung-erklaeren',
+		kind: 'anwendung',
+		helpLevel: 0,
+		recordedAt: '2026-11-27T10:00:00.000Z'
+	};
+	const claiming = new HttpTutorClient('/', async () =>
+		Response.json({ ...received, evidence: [evidence] })
+	);
+	await assert.rejects(claiming.evaluateExercise(request), (error: unknown) =>
+		assertProblem(error, 'protocol')
+	);
+});
+
 test('Konfiguration: Same-Origin-Client nutzt den injizierten Fetcher', async () => {
 	const paths: string[] = [];
 	const fetcher: typeof fetch = async (path) => {
@@ -733,32 +782,32 @@ test('Mock: Katalog-Tutorial schreibt Lernziel-Beleg und Whiteboard-Aufgabe biet
 		{ points: [{ x: 0.4, y: 0.5 }] },
 		{ points: [{ x: 0.7, y: 0.8 }] }
 	];
+	// Fourth evidence state: a sketch is received, not judged. Neither partial nor mastery.
 	for (const count of [2, 3]) {
-		await assert.rejects(
-			client.evaluateExercise({
-				kind: 'exercise',
-				requestId: `wb-ex-${count}`,
-				task: sketchTask,
-				answer: {
-					kind: 'whiteboard',
-					snapshot: { boardId: 'board-user', revision: count, strokes: strokes.slice(0, count) }
-				}
-			}),
-			(error: unknown) => {
-				assert.ok(error instanceof ApiError);
-				assert.equal(error.problem.code, 'unavailable');
-				assert.match(
-					error.problem.message,
-					/Prüfe selbst: Sind e = a · b, d = e \+ c und beide Pfade von d zu L eingezeichnet/
-				);
-				return true;
+		const outcome = await client.evaluateExercise({
+			kind: 'exercise',
+			requestId: `wb-ex-${count}`,
+			task: sketchTask,
+			answer: {
+				kind: 'whiteboard',
+				snapshot: { boardId: 'board-user', revision: count, strokes: strokes.slice(0, count) }
 			}
+		});
+		assert.equal(outcome.result, 'nicht_pruefbar_oder_alternativweg');
+		assert.notEqual(outcome.result, 'teilweise');
+		assert.equal(countsAsMastery(outcome.result), false);
+		assert.deepEqual(outcome.evidence, []);
+		assert.match(
+			outcome.feedback,
+			/Prüfe selbst: Sind e = a · b, d = e \+ c und beide Pfade von d zu L eingezeichnet/
 		);
 	}
 
 	const mirror = await client.getActivityMirror(course);
 	assert.ok(mirror.evidence.every((item) => item.taskId !== sketchTask.taskId));
-	assert.ok(mirror.recentPractice.every((item) => item.itemId !== sketchTask.taskId));
+	const sketchPractice = mirror.recentPractice.filter((item) => item.itemId === sketchTask.taskId);
+	assert.equal(sketchPractice.length, 2);
+	assert.ok(sketchPractice.every((item) => item.result === 'nicht_pruefbar_oder_alternativweg'));
 	const tutEvidence = mirror.evidence.find((item) => item.attemptId === 'tut-ev-1');
 	assert.equal(tutEvidence?.helpLevel, 0);
 	assert.equal(tutEvidence?.taskId, 'attention-skalierung');
@@ -1125,4 +1174,139 @@ test('Alle neun Übungen stellen eigene fachliche Rückfragen, die Probe erst na
 	}
 	assert.equal(exercises.length, 9);
 	assert.equal(questions.size, 9);
+});
+
+test('Mock: offene Abrufaufgabe unterscheidet Treffer, Alternativweg, Begründung und Fehler', async () => {
+	const client = new MockTutorClient(buildEditorialMockFixtures(), options);
+	const exercise = exercises.find(({ task }) => task.taskId === 'a-bp-addieren-erklaeren');
+	assert.ok(exercise);
+	const attempt = (requestId: string, text: string) =>
+		client.evaluateExercise({
+			kind: 'exercise',
+			requestId,
+			task: exercise.task,
+			answer: { kind: 'text', text }
+		});
+
+	for (const text of ['08', '8,0', '8']) {
+		const correct = await attempt('open-' + text, text);
+		assert.equal(correct.result, 'korrekt', text);
+		assert.ok(correct.evidence.length > 0);
+	}
+
+	for (const [id, text] of [
+		['open-weg', '4 + 4 = 8'],
+		['open-begruendung', 'Weil d zweimal vorkommt, addieren sich die Beiträge.']
+	] as const) {
+		const received = await attempt(id, text);
+		assert.equal(received.result, 'nicht_pruefbar_oder_alternativweg', text);
+		assert.equal(countsAsMastery(received.result), false);
+		assert.deepEqual(received.evidence, []);
+		assert.match(received.feedback, /\?$/);
+		assert.doesNotMatch(received.feedback, /\b8\b/);
+	}
+
+	const wrong = await attempt('open-7', '7');
+	assert.equal(wrong.result, 'falsch');
+	assert.deepEqual(wrong.evidence, []);
+	// A hint, never the full solution on the first wrong attempt.
+	assert.doesNotMatch(wrong.feedback, /\b8\b|4 \+ 4/);
+});
+
+test('HTTP: agentContext nur mit shareWithApi: true, sonst nie im Body', async () => {
+	const bodies: TutorTurnRequest[] = [];
+	const api = new MockTutorClient(defaultFixtures, options);
+	const fetcher: typeof fetch = async (_url, init) => {
+		assert.ok(typeof init?.body === 'string');
+		const body: TutorTurnRequest = JSON.parse(init.body);
+		bodies.push(body);
+		return Response.json(await api.turn(body));
+	};
+	const request = {
+		...turn('share-off', 0, { kind: 'message', text: 'Formel bitte' }),
+		agentContext: attentionContext
+	};
+	await new HttpTutorClient('/', fetcher, { shareWithApi: false }).turn(request);
+	assert.equal(Object.hasOwn(bodies[0], 'agentContext'), false);
+	await new HttpTutorClient('/', fetcher, { shareWithApi: true }).turn({
+		...request,
+		sessionId: 'share-on',
+		requestId: 'share-on'
+	});
+	assert.deepEqual(bodies[1].agentContext, attentionContext);
+});
+
+test('HTTP: das 4-stufige evidenceLevel ist maßgeblich, ungeprüft bleibt neutral', async () => {
+	const request: ExerciseAttemptRequest = {
+		kind: 'exercise',
+		requestId: 'level',
+		task: demoTask,
+		answer: { kind: 'text', text: 'Zeilen 5 · 6' }
+	};
+	const reply = (body: object) => async () =>
+		Response.json({
+			kind: 'exercise',
+			requestId: 'level',
+			attemptId: 'level:attempt',
+			feedback: 'Eingereicht.',
+			evidence: [],
+			...body
+		});
+	const received = await new HttpTutorClient(
+		'/',
+		reply({ result: 'teilweise', evidenceLevel: 'nicht_pruefbar_oder_alternativweg' })
+	).evaluateExercise(request);
+	assert.equal(received.result, 'nicht_pruefbar_oder_alternativweg');
+	assert.equal(countsAsMastery(received.result), false);
+
+	const legacy = await new HttpTutorClient('/', reply({ result: 'teilweise' })).evaluateExercise(
+		request
+	);
+	assert.equal(legacy.result, 'teilweise');
+
+	await assert.rejects(
+		new HttpTutorClient(
+			'/',
+			reply({ result: 'falsch', evidenceLevel: 'unbekannt' })
+		).evaluateExercise(request),
+		(error: unknown) => error instanceof ApiError && error.problem.code === 'protocol'
+	);
+});
+
+test('HTTP mirror keeps evidence only for attempts whose effective result counts as mastery', async () => {
+	const recordedAt = '2026-11-27T08:00:00Z';
+	const recentPractice = [
+		'korrekt',
+		'teilweise',
+		'falsch',
+		'nicht_pruefbar_oder_alternativweg'
+	].map((result, index) => ({
+		id: 'attempt-' + index,
+		itemId: demoTask.taskId,
+		kind: 'exercise',
+		recordedAt,
+		result: index === 3 ? 'korrekt' : result,
+		...(index === 3 && { evidenceLevel: result })
+	}));
+	const evidence = recentPractice.map(({ id }) => ({
+		id: id + ':1',
+		attemptId: id,
+		taskId: demoTask.taskId,
+		learningGoalId: 'goal',
+		kind: 'anwendung',
+		helpLevel: 0,
+		recordedAt
+	}));
+	// Legacy rows can carry the attempt in the evidence ID or only in the timestamp.
+	delete (evidence[1] as { attemptId?: string }).attemptId;
+	delete (evidence[2] as { attemptId?: string }).attemptId;
+	evidence[2].id = 'legacy';
+	evidence[2].recordedAt = '2026-11-27T08:01:00+00:00';
+	recentPractice[2].recordedAt = '2026-11-27T08:01:00Z';
+	const client = new HttpTutorClient('/', async () =>
+		Response.json({ course: demoCourse, recentPractice, evidence })
+	);
+	const mirror = await client.getActivityMirror(demoCourse);
+	assert.equal(mirror.recentPractice[3].result, 'nicht_pruefbar_oder_alternativweg');
+	assert.deepEqual(mirror.evidence, [evidence[0]]);
 });

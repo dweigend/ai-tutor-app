@@ -1,7 +1,8 @@
 import type { CourseRef } from '../api/types.js';
 import type { MockFixtures } from '../api/mock.js';
 import type { ArtImage } from './magazin.js';
-import { formulaRef } from '../math/editorial-formulas.js';
+import { attentionDeckLatex } from '../math/attention-terms.js';
+import { editorialFormulas, formulaRef } from '../math/editorial-formulas.js';
 import { paragraphs } from './markdown.js';
 import { repoSource, studies } from './sources.js';
 import type { InteractiveTutorial, TutorialCheck, TutorialCheckRule } from './types.js';
@@ -731,4 +732,237 @@ export const tutorialChecks: readonly TutorialCheckFixture[] = [
 		textRules('-12', 'd.grad · b = 6 · (−2) = −12.'),
 		'Multipliziere d.grad mit der lokalen Ableitung von e nach a.'
 	)
+];
+
+// ---------------------------------------------------------------------------------------------
+// 3D slide decks of /erklaerungen (#60): five slides each. A slide is one headline, at most one
+// formula and exactly one control; the 3D scene carries the rest.
+// ---------------------------------------------------------------------------------------------
+
+export type DeckId = 'attention' | 'backprop';
+export type DeckPickKnob = 'focusToken' | 'node';
+export type DeckRangeKnob = 'temperature' | 'a' | 'c' | 'lr';
+
+export type DeckControl =
+	| { kind: 'pick'; knob: DeckPickKnob; label: string; options: readonly string[] }
+	| { kind: 'switch'; label: string }
+	| {
+			kind: 'range';
+			knob: DeckRangeKnob;
+			label: string;
+			/** Stands before the value in the readout, e.g. `lr 0,25`. */
+			prefix: string;
+			min: number;
+			max: number;
+			step: number;
+			digits: number;
+			/** Notes of the valley challenge, judged when the grip is released. */
+			challenge?: { short: string; overshoot: string; landed: string };
+	  }
+	| {
+			kind: 'choice';
+			label: string;
+			options: readonly ['a', 'b'];
+			hit: string;
+			miss: string;
+			/** Both gradients are equal in size. */
+			tie: string;
+	  }
+	| { kind: 'bubbles'; solved: string; pickFirst: string };
+
+export interface DeckFormula {
+	/** LaTeX with its terms marked by `\htmlData{term=…}` for highlighting. */
+	latex: string;
+	spoken: string;
+	/** The editorial formula behind it, published as screen context while a term is in focus. */
+	source?: { id: string; latex: string };
+}
+
+export interface DeckSlide {
+	id: string;
+	/** The one line of the slide in RichText notation: at most two lines at 390px. */
+	headline: string;
+	formula?: DeckFormula;
+	control: DeckControl;
+}
+
+export interface ExplainDeck {
+	id: DeckId;
+	/** Name on the deck switch. */
+	label: string;
+	tutorialId: string;
+	courseId: string;
+	title: string;
+	slides: readonly DeckSlide[];
+}
+
+const term = (id: string, latex: string) => String.raw`\htmlData{term=${id}}{${latex}}`;
+
+const attentionSource = editorialFormulas.get('attention-formel')!;
+const attentionFormula: DeckFormula = {
+	latex: attentionDeckLatex,
+	spoken: attentionSource.spoken,
+	source: { id: attentionSource.id, latex: attentionSource.latex }
+};
+
+const graphFormula: DeckFormula = {
+	latex: String.raw`${term('loss', 'L')} = (${term('a', 'a')} \mathbin{${term('mul', String.raw`\cdot`)}} ${term('b', 'b')} \mathbin{${term('add', '+')}} ${term('c', 'c')})^2`,
+	spoken: editorialFormulas.get('backprop-hauptgraph')!.spoken
+};
+
+export const explainDecks: readonly ExplainDeck[] = [
+	{
+		id: 'attention',
+		label: 'Attention',
+		tutorialId: ATTENTION_ID,
+		courseId: course.courseId,
+		title: attentionTutorial.title,
+		slides: [
+			{
+				id: 'tokens',
+				headline: 'Auf welche Wörter schaut ein Wort?',
+				control: {
+					kind: 'pick',
+					knob: 'focusToken',
+					label: 'Wort',
+					options: ['T1', 'T2', 'T3', 'T4']
+				}
+			},
+			{
+				id: 'skalarprodukt',
+				headline: 'Was sucht Q – und wer passt dazu?',
+				formula: {
+					latex: String.raw`${term('Q', 'Q')} \cdot ${term('K', String.raw`K^{\mathsf{T}}`)}`,
+					spoken: 'Q mal K transponiert'
+				},
+				control: {
+					kind: 'pick',
+					knob: 'focusToken',
+					label: 'Suchanfrage',
+					options: ['Q1', 'Q2', 'Q3', 'Q4']
+				}
+			},
+			{
+				id: 'skalierung',
+				headline: 'Was passiert ohne √d_{k}?',
+				formula: {
+					latex: String.raw`\dfrac{${term('Q', 'Q')}\,${term('K', String.raw`K^{\mathsf{T}}`)}}{${term('dk', String.raw`\sqrt{d_k}`)}}`,
+					spoken: 'Q mal K transponiert, geteilt durch Wurzel aus d Index k'
+				},
+				control: { kind: 'switch', label: '√d_{k}' }
+			},
+			{
+				id: 'softmax',
+				headline: 'Dreh an T: Wie spitz werden die Gewichte?',
+				formula: {
+					latex: String.raw`\alpha = ${term('softmax', String.raw`\operatorname{softmax}`)}(z / T),\quad \sum_i \alpha_i = 1`,
+					spoken:
+						'Alpha gleich Softmax von z geteilt durch Temperatur T. Die Summe aller Alpha ist eins.'
+				},
+				control: {
+					kind: 'range',
+					knob: 'temperature',
+					label: 'Temperatur',
+					prefix: 'T',
+					min: 0.5,
+					max: 2.5,
+					step: 0.1,
+					digits: 1
+				}
+			},
+			{
+				id: 'bubbles',
+				headline: 'Was macht welcher Teil? Ordne zu.',
+				formula: attentionFormula,
+				control: {
+					kind: 'bubbles',
+					solved: 'Alles klar – alle fünf sitzen.',
+					pickFirst: 'Tippe erst links ein Symbol an.'
+				}
+			}
+		]
+	},
+	{
+		id: 'backprop',
+		label: 'Backprop',
+		tutorialId: BACKPROP_ID,
+		courseId: course.courseId,
+		title: backpropTutorial.title,
+		slides: [
+			{
+				id: 'rechengraph',
+				headline: 'Was passiert an welchem Knoten?',
+				formula: graphFormula,
+				control: {
+					kind: 'pick',
+					knob: 'node',
+					label: 'Knoten',
+					options: ['a', 'b', 'c', '×', '+', 'L']
+				}
+			},
+			{
+				id: 'vorwaerts',
+				headline: 'Dreh an a: Was kommt bei L an?',
+				formula: graphFormula,
+				control: {
+					kind: 'range',
+					knob: 'a',
+					label: 'Eingang a',
+					prefix: 'a',
+					min: -2,
+					max: 2,
+					step: 0.5,
+					digits: 1
+				}
+			},
+			{
+				id: 'rueckwaerts',
+				headline: 'Wo wirkt eine Änderung stärker: bei a oder b?',
+				formula: graphFormula,
+				control: {
+					kind: 'choice',
+					label: 'Zweig mit dem größeren Gradienten',
+					options: ['a', 'b'],
+					hit: 'Genau – bei a · b zählt jeweils der andere Faktor.',
+					miss: 'Andersherum: Bei a · b zählt der jeweils andere Faktor.',
+					tie: 'Gleich stark – a und b sind hier gleich groß.'
+				}
+			},
+			{
+				id: 'merge',
+				headline: 'Zwei Pfade ins Quadrat: Beide Beiträge addieren sich.',
+				formula: graphFormula,
+				control: {
+					kind: 'range',
+					knob: 'c',
+					label: 'Eingang c',
+					prefix: 'c',
+					min: -3,
+					max: 3,
+					step: 1,
+					digits: 0
+				}
+			},
+			{
+				id: 'tal',
+				headline: 'Wähl die Lernrate: ab ins Tal, ohne Überschwingen.',
+				formula: graphFormula,
+				control: {
+					kind: 'range',
+					knob: 'lr',
+					label: 'Lernrate',
+					prefix: 'lr',
+					min: 0.05,
+					max: 0.8,
+					step: 0.05,
+					digits: 2,
+					challenge: {
+						short: 'Noch zu klein – die Kugel bleibt am Hang stehen.',
+						overshoot: 'Zu groß – die Kugel schießt übers Tal hinaus.',
+						landed: 'Alles klar – sauber im Tal gelandet.'
+					}
+				}
+			}
+		]
+	}
 ];

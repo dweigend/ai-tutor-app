@@ -42,12 +42,12 @@ const waitForOwnAttempt = {
 } as const;
 
 // ---------------------------------------------------------------------------------------------
-// KI selbst bauen · Logits, Softmax und Kreuzentropie als Fehlermaß
+// Logits, Softmax und Kreuzentropie als Fehlermaß
 // ---------------------------------------------------------------------------------------------
 
 const softmaxAskWhy: SpokenMove = {
 	move: 'zurueckerklaeren_lassen',
-	text: 'Dann in deinen Worten: Welche Zahl ziehst du in deinem Code von allen Logits ab, damit exp nie überläuft? Und warum ändert das das Ergebnis nicht?'
+	text: 'Dann in deinen Worten: Welche Zahl ziehst du von allen Logits ab, damit exp nie überläuft – und warum bleibt das Ergebnis gleich?'
 };
 
 const softmaxScenario: LabeledTutorScenario = {
@@ -56,7 +56,7 @@ const softmaxScenario: LabeledTutorScenario = {
 	task: task('ki-selbst-bauen', 'a-m5-softmax-kreuzentropie'),
 	title: 'Warum bricht softmax bei 1000 ab?',
 	setup:
-		'Modul 5. Deine softmax(z) liefert für [2, 1, 0] die erwarteten Werte. Für [1000.0, 0.0] bricht sie mit „OverflowError: math range error“ ab. Danach wartet noch die Schlussfrage: [2, 1, 0] und [20, 10, 0] haben dieselbe Rangfolge. Welches Modell ist „sicherer“, und hat es deshalb öfter recht?',
+		'Deine softmax(z) klappt für [2, 1, 0], bricht aber bei [1000.0, 0.0] mit „OverflowError: math range error“ ab. Danach noch eine Frage: [2, 1, 0] und [20, 10, 0] haben dieselbe Rangfolge – welches Modell ist „sicherer“, und liegt es deshalb öfter richtig?',
 	delegation: {
 		learner: [
 			'Die stabile softmax und kreuzentropie selbst schreiben.',
@@ -71,7 +71,7 @@ const softmaxScenario: LabeledTutorScenario = {
 	},
 	parallelExample: {
 		move: 'beispiel_zeigen',
-		text: 'Ein vorgerechnetes Beispiel an anderen Zahlen: softmax([3, 2]). Zieh 3 ab, das ergibt [0, −1]. e^{0} = 1 und e^{−1} ≈ 0,368, die Summe ist 1,368. Die Anteile sind ≈ 0,731 und 0,269. Ohne Abzug kommt dasselbe heraus, nur mit größeren Zwischenwerten. Deine Funktion und die Begründung schreibst du selbst.'
+		text: 'Schau dir andere Zahlen an: softmax([3, 2]). Zieh 3 ab, dann steht da [0, −1]. e^{0} = 1 und e^{−1} ≈ 0,368, zusammen 1,368 – also rund 0,731 und 0,269. Ohne Abzug kommt genau dasselbe raus, nur mit größeren Zwischenwerten. Deine Funktion schreibst du jetzt selbst.'
 	},
 	whiteboardPrompt: {
 		move: 'nachhaken',
@@ -82,7 +82,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'einstieg',
 			prompt: {
 				move: 'nachhaken',
-				text: 'Fangen wir bei der Fehlermeldung an. Wie groß ist e hoch 1000 ungefähr, und wie groß darf ein float in Python höchstens werden?'
+				text: 'Hey du – lass uns bei der Fehlermeldung starten. Wie groß ist e hoch 1000 ungefähr, und bis wohin reicht ein float in Python?'
 			},
 			quickReplies: [
 				message('loesung-bitte', 'Schreib mir die stabile Version einfach hin.'),
@@ -95,7 +95,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['einfach hin'] },
 					reply: {
 						move: 'kurz_erklaeren',
-						text: 'Die stabile Version ist genau das, was diese Aufgabe von dir will. Deshalb schreibe ich sie nicht hin. Ich zerlege dir aber den Weg, bis jeder Schritt klein ist. Erster Schritt: Wie groß ist e hoch 1000 ungefähr?'
+						text: 'Genau diese Funktion baust du hier selbst – deshalb schreibe ich sie nicht hin. Wir gehen es aber Schritt für Schritt durch: Wie groß ist e hoch 1000 ungefähr?'
 					}
 				}
 			],
@@ -105,7 +105,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'groessenordnung',
 			prompt: {
 				move: 'vorhersage_verlangen',
-				text: 'Zum Vergleich: e hoch 1000 hat rund 435 Stellen, ein float endet bei etwa 1,8 · 10³⁰⁸. Daran scheitert exp. Jetzt eine Vorhersage, bevor du etwas ausführst: Was passiert mit softmax([2, 1, 0]), wenn du zu allen drei Logits 100 addierst? Schreib deine Vermutung und wie sicher du bist.'
+				text: 'e hoch 1000 hat rund 435 Stellen, ein float endet schon bei etwa 1,8 · 10³⁰⁸ – deshalb bricht exp ab. Was tippst du ohne Ausführen: Was passiert mit softmax([2, 1, 0]), wenn du auf alle drei Logits 100 draufrechnest?'
 			},
 			quickReplies: [
 				answer('riesig', 'Riesig, viel größer als jeder float.'),
@@ -117,7 +117,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['beliebig'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Für ganze Zahlen stimmt das: 10 ** 1000 klappt. math.exp liefert aber einen float. Was erwartest du bei 10.0 ** 1000?'
+						text: 'Für ganze Zahlen stimmt das: 10 ** 1000 klappt. math.exp gibt aber einen float zurück. Was passiert bei 10.0 ** 1000?'
 					},
 					nextStepId: 'groessenordnung'
 				}
@@ -128,7 +128,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'verschiebung',
 			prompt: {
 				move: 'nachhaken',
-				text: 'Prüf deine Vermutung gleich in Python. Vorher die Begründung: Schreib softmax als Bruch und sag in einem Satz, was eine gemeinsame Verschiebung mit Zähler und Nenner macht.'
+				text: 'Probier’s gleich in Python aus. Vorher kurz die Idee: Schreib softmax als Bruch – was passiert mit Zähler und Nenner, wenn du überall dieselbe Zahl addierst?'
 			},
 			quickReplies: [
 				answer('gleich', 'Es bleibt gleich.', 70),
@@ -143,7 +143,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['spitzer'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Halte zwei Fälle auseinander: [102, 101, 100] und [20, 10, 0]. Im einen sind die Abstände zwischen den Logits gleich geblieben, im anderen nicht. Welcher Fall entspricht deiner Verschiebung?'
+						text: 'Vergleich mal [102, 101, 100] und [20, 10, 0]: Einmal bleiben die Abstände gleich, einmal wachsen sie. Welcher Fall passt zu +100?'
 					},
 					nextStepId: 'verschiebung-hinweis'
 				},
@@ -152,7 +152,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['keine ahnung'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 1: Schreib den ersten Anteil als Bruch, e hoch z₁ geteilt durch die Summe aller e hoch z_{j}. Was passiert mit Zähler und Nenner, wenn jedes z um 100 wächst?'
+						text: 'Kein Problem: Schreib den ersten Anteil als Bruch, e hoch z₁ durch die Summe aller e hoch z_{j}. Was ändert sich oben und unten, wenn jedes z um 100 wächst?'
 					},
 					nextStepId: 'verschiebung-hinweis'
 				}
@@ -172,7 +172,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['noch nicht'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 2: e hoch (z + 100) ist dasselbe wie e hoch z mal e hoch 100. Wenn dieser Faktor oben und unten im Bruch steht, was bleibt übrig?'
+						text: 'e hoch (z + 100) ist e hoch z mal e hoch 100. Wenn derselbe Faktor oben und unten steht – was passiert mit ihm?'
 					},
 					nextStepId: 'verschiebung-hinweis-3'
 				}
@@ -192,7 +192,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['immer noch'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 3, an anderen Zahlen: Für [1, 0] ist der erste Anteil e / (e + 1) ≈ 0,731. Für [3, 2] ist er e³ / (e³ + e²). Klammere e² aus und vergleiche. Welche Zahl hast du abgezogen, um von [3, 2] nach [1, 0] zu kommen?'
+						text: 'Rechne es klein durch: Bei [1, 0] ist der erste Anteil e / (e + 1) ≈ 0,731. Bei [3, 2] steht e³ / (e³ + e²). Klammere e² aus – welche Zahl hast du abgezogen, um von [3, 2] auf [1, 0] zu kommen?'
 					},
 					nextStepId: 'verschiebung-hinweis-3'
 				}
@@ -203,7 +203,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'max-abziehen',
 			prompt: {
 				move: 'transfer_stellen',
-				text: 'Jetzt die Schlussfrage der Aufgabe. [2, 1, 0] gibt der ersten Klasse rund 0,67, [20, 10, 0] rund 0,99995. Beide wählen dieselbe Klasse. Welches Modell hat öfter recht?'
+				text: 'Alles klar. Jetzt zur zweiten Frage: [2, 1, 0] gibt der ersten Klasse rund 0,67, [20, 10, 0] rund 0,99995. Beide wählen Klasse 1. Welches Modell liegt öfter richtig?'
 			},
 			quickReplies: [
 				answer(
@@ -218,7 +218,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['mittelwert'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Probier das an [2000, 0]. Der Mittelwert ist 1000. Welcher Exponent bleibt nach dem Abziehen übrig, und läuft exp damit noch über?'
+						text: 'Teste das mal an [2000, 0]: Der Mittelwert ist 1000. Welcher Exponent bleibt übrig – und läuft exp damit immer noch über?'
 					},
 					nextStepId: 'max-abziehen'
 				}
@@ -229,7 +229,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'kalibrierung',
 			prompt: {
 				move: 'nachhaken',
-				text: 'Welche Beobachtung bräuchtest du, um einer vorhergesagten 0,95 zu trauen? Beschreib, was du zählen würdest.'
+				text: 'Woran würdest du prüfen, ob eine gemeldete 0,95 wirklich stimmt? Was müsstest du nachzählen?'
 			},
 			quickReplies: [
 				answer('fv-sicherer', 'Das zweite, es ist sich viel sicherer.', 80),
@@ -245,7 +245,7 @@ const softmaxScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['sicherer'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Stell dir 100 Bilder vor, denen das zweite Modell jeweils 0,99995 gibt. 70 davon erkennt es richtig. Was sagt die Zahl 0,99995 dann über dieses Modell?'
+						text: 'Stell dir 100 Bilder vor, bei denen das Modell jedes Mal 0,99995 meldet – aber nur 70 stimmen. Was heißt die 0,99995 dann?'
 					},
 					nextStepId: 'kalibrierung-check'
 				}
@@ -256,7 +256,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'kalibrierung-check',
 			prompt: {
 				move: 'zurueckerklaeren_lassen',
-				text: 'Schreib das als Antwort auf die Schlussfrage auf, in zwei Sätzen und mit eigenem Beispiel. Ich lese mit, ändere aber nichts daran.'
+				text: 'Fass das in zwei Sätzen mit einem eigenen Beispiel zusammen.'
 			},
 			quickReplies: [
 				answer('ueberschaetzt', 'Es ist zu selbstsicher. Die Zahl passt nicht zur Trefferquote.')
@@ -267,7 +267,7 @@ const softmaxScenario: LabeledTutorScenario = {
 			id: 'abschluss',
 			prompt: {
 				move: 'abschliessen',
-				text: 'Beide Teile hast du selbst erarbeitet: die Verschiebung um das Maximum und den Unterschied zwischen Sicherheit und Trefferquote. Lass jetzt die Tests der Aufgabe laufen. Morgen kommt eine kurze Abrufkarte dazu, ohne diesen Verlauf.'
+				text: 'Stark – Maximum abziehen sitzt, und der Unterschied zwischen hoher Zahl und echter Trefferquote auch. Jag jetzt deine Tests drüber.'
 			},
 			quickReplies: [message('eigenversuch', 'Ich probiere es kurz aus.')],
 			diagnoses: [waitForOwnAttempt]
@@ -281,7 +281,7 @@ const softmaxScenario: LabeledTutorScenario = {
 
 const pythonAskBack: SpokenMove = {
 	move: 'zurueckerklaeren_lassen',
-	text: 'Dann erklär in einem Satz, warum preise nach der ersten Schleife unverändert ist. Und schreib die Korrektur selbst, Python prüft sie danach.'
+	text: 'Erklär kurz in einem Satz, warum preise nach der ersten Schleife gleich bleibt, und schreib dann deine Korrektur.'
 };
 
 const pythonScenario: LabeledTutorScenario = {
@@ -290,7 +290,7 @@ const pythonScenario: LabeledTutorScenario = {
 	task: task('python-einstieg', 'a-schleifenvariable-vorhersagen'),
 	title: 'Warum bleibt die Liste gleich?',
 	setup:
-		'Woche 2. Du hast vorhergesagt, dass nach `for p in preise: p = p * 2` die Liste [20, 40, 60] enthält. Python gibt [10, 20, 30] aus. Die zweite Schleife mit `neu.append(p * 2)` liefert dagegen [20, 40, 60].',
+		'Nach `for p in preise: p = p * 2` hast du [20, 40, 60] erwartet, Python gibt aber [10, 20, 30] aus. Mit `neu.append(p * 2)` kommt [20, 40, 60] raus.',
 	delegation: {
 		learner: [
 			'Bindungen von Namen und Änderungen an Objekten selbst verfolgen.',
@@ -305,7 +305,7 @@ const pythonScenario: LabeledTutorScenario = {
 	},
 	parallelExample: {
 		move: 'beispiel_zeigen',
-		text: 'Ein durchgerechnetes Beispiel an anderen Werten: zahlen = [1, 2], dann for z in zahlen: z = z + 10. Durchlauf 1: z zeigt auf 1, danach auf 11. zahlen[0] zeigt weiter auf 1. Durchlauf 2: z zeigt auf 2, danach auf 12. Am Ende ist zahlen weiterhin [1, 2]. Deine eigene Schleife verfolgst du selbst.'
+		text: 'Schau dir andere Zahlen an: zahlen = [1, 2], dann for z in zahlen: z = z + 10. Runde 1: z zeigt erst auf 1, dann auf 11 – zahlen[0] bleibt bei 1. Runde 2: z zeigt erst auf 2, dann auf 12. Am Ende steht in zahlen immer noch [1, 2]. Jetzt zu deiner Schleife.'
 	},
 	whiteboardPrompt: {
 		move: 'nachhaken',
@@ -316,7 +316,7 @@ const pythonScenario: LabeledTutorScenario = {
 			id: 'einstieg',
 			prompt: {
 				move: 'nachhaken',
-				text: 'Gehen wir in den ersten Durchlauf. Worauf zeigt p, bevor p = p * 2 ausgeführt wird, und worauf zeigt preise[0]?'
+				text: 'Schauen wir in den ersten Durchlauf: Worauf zeigt p vor p = p * 2, und worauf zeigt preise[0]?'
 			},
 			quickReplies: [
 				message('warum', 'Warum stehen noch 10, 20, 30 in der Liste? Ich habe doch p verdoppelt.'),
@@ -330,7 +330,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['fach'] },
 					reply: {
 						move: 'nachhaken',
-						text: 'Prüfen wir das. Zeichne zwei Kästchen, eins für preise[0] und eins für p. Worauf zeigt jedes davon im ersten Durchlauf, bevor p = p * 2 läuft?'
+						text: 'Mal kurz zwei Kästchen auf: eins für preise[0], eins für p. Worauf zeigen beide vor p = p * 2?'
 					}
 				},
 				{
@@ -338,7 +338,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['sag mir einfach'] },
 					reply: {
 						move: 'kurz_erklaeren',
-						text: 'Die Korrektur schreibst du selbst, sie ist Teil der Aufgabe. Ich helfe dir zu sehen, warum die erste Schleife nichts ändert. Worauf zeigt p im ersten Durchlauf?'
+						text: 'Die Zeile schreibst du gleich selbst – wir klären erst, warum die alte nichts ändert. Worauf zeigt p im ersten Durchlauf?'
 					}
 				}
 			],
@@ -348,7 +348,7 @@ const pythonScenario: LabeledTutorScenario = {
 			id: 'pfeile',
 			prompt: {
 				move: 'vorhersage_verlangen',
-				text: 'Jetzt läuft p = p * 2. Welcher Pfeil ändert sich, der von p oder der von preise[0]? Gib vorher an, wie sicher du bist.'
+				text: 'Jetzt läuft p = p * 2. Welcher Pfeil zieht um – der von p oder der von preise[0]?'
 			},
 			quickReplies: [
 				answer('beide-zehn', 'Beide zeigen auf die 10.'),
@@ -360,7 +360,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['ist preise'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Vergleich zwei Zeilen: b = 5, dann a = b, dann b = b + 1. Welchen Wert hat a danach? Wenn du das weißt, weißt du auch, ob p und preise[0] dasselbe Kästchen sind.'
+						text: 'Vergleich mal: b = 5, a = b, b = b + 1. Was steht danach in a? Dann siehst du sofort, ob p und preise[0] dasselbe Kästchen sind.'
 					},
 					nextStepId: 'pfeile'
 				}
@@ -381,7 +381,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['beide'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 1: Eine Zuweisung mit = bindet den Namen links neu. Steht links preise[0] oder p?'
+						text: 'Kein Problem: Ein einfaches = bindet immer nur den Namen links neu. Was steht links – preise[0] oder p?'
 					},
 					nextStepId: 'welcher-pfeil-2'
 				},
@@ -390,7 +390,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['nicht sicher'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 1: Eine Zuweisung mit = bindet den Namen links neu. Steht links preise[0] oder p?'
+						text: 'Kein Problem: Ein einfaches = bindet immer nur den Namen links neu. Was steht links – preise[0] oder p?'
 					},
 					nextStepId: 'welcher-pfeil-2'
 				}
@@ -410,7 +410,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['noch nicht'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 2: Hier ist eine leere Trace-Tabelle mit den Spalten Durchlauf, p und preise. Trag für den ersten Durchlauf ein, was vor und nach p = p * 2 in jeder Spalte steht.'
+						text: 'Schreib dir drei Spalten auf: Durchlauf, p, preise. Was steht im ersten Durchlauf vor und nach p = p * 2 drin?'
 					},
 					nextStepId: 'welcher-pfeil-3'
 				}
@@ -430,7 +430,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['immer noch'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: "Hinweis 3, an einem anderen Beispiel: namen = ['ada', 'bo'], dann for n in namen: n = n.upper(). Danach ist namen weiterhin ['ada', 'bo'], weil n = … nur n neu bindet. Welcher Name in deinem Code spielt die Rolle von n?"
+						text: "Anderes Beispiel: namen = ['ada', 'bo'], dann for n in namen: n = n.upper(). Danach steht in namen weiter ['ada', 'bo'], weil n = … nur n umhängt. Welcher Name spielt bei dir die Rolle von n?"
 					},
 					nextStepId: 'welcher-pfeil-3'
 				}
@@ -441,7 +441,7 @@ const pythonScenario: LabeledTutorScenario = {
 			id: 'korrektur',
 			prompt: {
 				move: 'transfer_stellen',
-				text: 'Eine neue Lage: sicherung = preise, danach preise.append(40). Was gibt print(sicherung) aus? Sag erst die Ausgabe und wie sicher du bist, dann führ es aus.'
+				text: 'Alles klar. Neuer Fall: sicherung = preise, danach preise.append(40). Was gibt print(sicherung) aus?'
 			},
 			quickReplies: [
 				answer(
@@ -456,7 +456,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['preise[i]'] },
 					reply: {
 						move: 'nachhaken',
-						text: 'Das funktioniert auch, aber anders: Diese Version verändert die Liste selbst, die andere baut eine neue. Welche brauchst du, wenn du die alten Preise später noch vergleichen willst?'
+						text: 'Klappt auch – verändert aber die alte Liste direkt statt eine neue zu bauen. Welche Variante willst du, wenn du die alten Preise noch brauchst?'
 					},
 					nextStepId: 'korrektur'
 				}
@@ -467,7 +467,7 @@ const pythonScenario: LabeledTutorScenario = {
 			id: 'transfer',
 			prompt: {
 				move: 'abschliessen',
-				text: 'Halte fest, was du heute unterschieden hast: einen Namen neu binden und ein Objekt verändern. Ob deine Vorhersage stimmte, sagt dir das Programm. In zwei Tagen kommt eine Abrufkarte mit einer Variante, ohne diesen Verlauf.'
+				text: 'Alles klar: Namen neu binden und Liste verändern sind zwei Paar Schuhe. Probier deine Vorhersage kurz in Python aus.'
 			},
 			quickReplies: [
 				answer('mit-vierzig', '[10, 20, 30, 40]', 70),
@@ -479,7 +479,7 @@ const pythonScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['kopie'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Vorhin hat p = p * 2 einen Namen neu gebunden. Jetzt verändert append ein Objekt. Wie viele Listen gibt es nach sicherung = preise, eine oder zwei? Zeichne die Pfeile.'
+						text: 'Vorhin hat = nur einen Namen umgehängt, jetzt ändert append die Liste selbst. Wie viele Listen gibt es nach sicherung = preise – eine oder zwei?'
 					},
 					nextStepId: 'transfer'
 				}
@@ -495,7 +495,7 @@ const pythonScenario: LabeledTutorScenario = {
 // The task forbids naming the solution phrases in tutor texts (verbotene_bestandteile).
 const learningReveal: SpokenMove = {
 	move: 'kurz_erklaeren',
-	text: 'So lief es in einem bekannten Experiment (Roediger & Karpicke, 2006): Nach fünf Minuten lag die Lesegruppe vorn, nach einer Woche die Abrufgruppe. Was heißt das für Mias zwölf Stunden? Bau ihren Plan bei gleicher Zeit um und begründe jede Änderung.'
+	text: 'Im Experiment von Roediger & Karpicke (2006) lag nach fünf Minuten die Lesegruppe vorn, nach einer Woche klar die Abrufgruppe. Wie baust du Mias zwölf Stunden damit um?'
 };
 
 const learningScenario: LabeledTutorScenario = {
@@ -504,7 +504,7 @@ const learningScenario: LabeledTutorScenario = {
 	task: task('lernen-gestalten', 'a-lg-lernplan-klausur'),
 	title: 'Reicht dreimal Lesen?',
 	setup:
-		'Mia, eine erfundene Studentin, schreibt in drei Wochen eine Statistikklausur. Ihr Plan: am Wochenende davor das Skript dreimal lesen und markieren, sechs Stunden am Samstag, sechs am Sonntag. Du sollst den Plan beurteilen und bei gleicher Zeit verbessern.',
+		'Mia schreibt in drei Wochen Statistik. Ihr Plan: am Wochenende davor das Skript dreimal lesen und markieren – sechs Stunden am Samstag, sechs am Sonntag. Bringt das was, und wie holst du aus denselben zwölf Stunden mehr raus?',
 	delegation: {
 		learner: [
 			'Den Plan beurteilen und jede Änderung begründen.',
@@ -519,7 +519,7 @@ const learningScenario: LabeledTutorScenario = {
 	},
 	parallelExample: {
 		move: 'beispiel_zeigen',
-		text: 'Ein ausgearbeitetes Beispiel aus einem anderen Fach: Ole hat zehn Stunden für eine Vokabelprüfung in vier Wochen. Statt zwei langer Leseabende plant er fünf Termine zu je zwei Stunden. Jeder Termin beginnt damit, die Übersetzungen abzudecken und aufzusagen. Erst danach sieht er nach und übt die Fehler gezielt. Mias Plan baust du selbst um.'
+		text: 'Anderes Fach: Ole hat zehn Stunden für Vokabeln in vier Wochen. Statt zwei Leseabenden plant er fünfmal zwei Stunden. Jede Runde startet mit abgedeckter Liste, erst danach schlägt er Fehler nach. Wie überträgst du das auf Mias Plan?'
 	},
 	whiteboardPrompt: {
 		move: 'nachhaken',
@@ -530,7 +530,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'einstieg',
 			prompt: {
 				move: 'nachhaken',
-				text: 'Bevor wir den Plan bewerten: Was muss Mia in der Klausur mit dem Stoff tun, ihn wiedererkennen oder selbst hervorholen?'
+				text: 'Was muss Mia in der Klausur können: Formeln im Skript wiedererkennen oder frei aus dem Kopf abrufen?'
 			},
 			quickReplies: [
 				message('plan-gut', 'Ich finde den Plan gut. Nach dreimal Lesen kennt sie alles.'),
@@ -543,7 +543,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['mach du'] },
 					reply: {
 						move: 'kurz_erklaeren',
-						text: 'Kalenderblöcke schlage ich dir später gern vor. Die Begründung, warum ein Plan besser ist, ist aber die Aufgabe. Erste Frage dazu: Was muss Mia in der Klausur mit dem Stoff tun?'
+						text: 'Zeitblöcke bauen wir gern gleich zusammen – erst zählt aber, warum der alte Plan wackelt. Was muss Mia in der Klausur mit dem Stoff tun?'
 					}
 				},
 				{
@@ -551,7 +551,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['kennt'] },
 					reply: {
 						move: 'nachhaken',
-						text: '„Kennt“ ist das entscheidende Wort. Muss Mia in der Klausur eine Formel wiedererkennen, die vor ihr steht, oder sie selbst hervorholen?'
+						text: '„Kennt“ klingt gut – aber liegt das Skript in der Klausur neben ihr, oder muss sie alles frei hervorholen?'
 					}
 				}
 			],
@@ -561,7 +561,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'wiedererkennen',
 			prompt: {
 				move: 'vorhersage_verlangen',
-				text: 'Dann eine Vorhersage. Zwei Gruppen lernen gleich lange. Gruppe A liest einen Text mehrmals. Gruppe B liest ihn einmal und schreibt danach auf, was sie noch weiß. Wer liegt fünf Minuten später vorn, wer nach einer Woche? Gib zu jedem Urteil an, wie sicher du bist.'
+				text: 'Schätz mal: Zwei Gruppen lernen gleich lang. Gruppe A liest einen Text mehrmals, Gruppe B liest einmal und schreibt alles frei aus dem Kopf auf. Wer liegt nach fünf Minuten vorn – und wer nach einer Woche?'
 			},
 			quickReplies: [
 				answer('hervorholen', 'Selbst hervorholen, das Skript liegt ja nicht daneben.'),
@@ -573,7 +573,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['wiedererkennt'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Probier es an dir selbst. Welche Schritte für den Median könntest du jetzt aufschreiben, ohne nachzusehen? Schreib sie hin, bevor du weiterliest.'
+						text: 'Probier’s direkt aus: Wie berechnet man den Median? Schreib die Schritte kurz aus dem Kopf auf, ohne nachzuschauen.'
 					},
 					nextStepId: 'selbsttest'
 				}
@@ -584,7 +584,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'selbsttest',
 			prompt: {
 				move: 'vorhersage_verlangen',
-				text: 'Die Stelle, an der du gestockt hast, hätte das dritte Lesen nicht gezeigt. Jetzt eine Vorhersage: Gruppe A liest einen Text mehrmals, Gruppe B liest einmal und schreibt dann auf, was sie noch weiß. Wer liegt nach fünf Minuten vorn, wer nach einer Woche? Mit Sicherheit zu jedem Urteil.'
+				text: 'Genau diese Lücke deckt drittes Lesen nicht auf. Jetzt schätz mal: Gruppe A liest mehrmals, Gruppe B liest einmal und schreibt frei auf. Wer liegt nach fünf Minuten vorn, wer nach einer Woche?'
 			},
 			quickReplies: [
 				answer(
@@ -599,7 +599,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['nicht zusammen'] },
 					reply: {
 						move: 'beispiel_zeigen',
-						text: 'Dann zuerst ein vorgerechnetes Beispiel an anderen Zahlen: [7, 3, 9, 4]. Sortiert: [3, 4, 7, 9]. Die Anzahl ist gerade, also mittelst du die beiden mittleren Werte 4 und 7. Ergebnis: 5,5. Jetzt du: Was ist der Median von [8, 1, 5, 2]?'
+						text: 'Kein Problem, kurzes Beispiel: [7, 3, 9, 4] sortiert ist [3, 4, 7, 9]. Gerade Anzahl, also die Mitte aus 4 und 7: 5,5. Jetzt du: Was ist der Median von [8, 1, 5, 2]?'
 					},
 					nextStepId: 'selbsttest'
 				}
@@ -620,7 +620,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['öfter gesehen'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 1: Trenn die beiden Zeitpunkte. Nach fünf Minuten zählt, was noch frisch vor Augen ist. Nach einer Woche zählt, was man selbst wiederfinden kann. Welche der beiden Tätigkeiten übt dieses Wiederfinden?'
+						text: 'Trenn die beiden Zeitpunkte: Nach fünf Minuten hilft, was gerade frisch vor Augen lag. Nach einer Woche zählt, was du frei abrufen kannst. Wer hat das geübt?'
 					},
 					nextStepId: 'vorhersage-2'
 				},
@@ -629,7 +629,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['beiden zeitpunkten'] },
 					reply: {
 						move: 'kontrastfall',
-						text: 'Schau dir die fünf Minuten noch einmal an. Wer hat den Text in diesem Moment frischer vor Augen, die Gruppe, die ihn gerade mehrmals gelesen hat, oder die andere?'
+						text: 'Kurz nachgedacht bei den fünf Minuten: Wer hat den Wortlaut in dem Moment noch ganz frisch im Kopf – Gruppe A oder B?'
 					},
 					nextStepId: 'vorhersage-2'
 				}
@@ -649,7 +649,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['noch nicht'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 2: Denk an eine Telefonnummer, die du oft gesehen, aber nie selbst gewählt hast. Erkennst du sie wieder? Kannst du sie aufsagen? Übertrag das auf die beiden Gruppen.'
+						text: 'Denk an eine Nummer auf dem Display: Du erkennst sie sofort wieder, kannst sie aber nicht frei aufsagen. Wie passt das zu Gruppe A und B?'
 					},
 					nextStepId: 'vorhersage-3'
 				}
@@ -669,7 +669,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['immer noch'] },
 					reply: {
 						move: 'gestufter_hinweis',
-						text: 'Hinweis 3, als Parallelfall: Zwei Personen lernen Vokabeln. Die eine liest die Liste fünfmal. Die andere deckt die Übersetzungen ab und sagt sie dreimal auf. Am nächsten Tag fragt jemand einzelne Wörter ab, ohne Liste. Wer hat geübt, was dann verlangt wird?'
+						text: 'Zwei Leute lernen Vokabeln: Eine liest die Liste fünfmal, die andere deckt ab und fragt sich dreimal selbst ab. Wer steht am nächsten Tag ohne Liste besser da?'
 					},
 					nextStepId: 'vorhersage-3'
 				}
@@ -680,7 +680,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'plan',
 			prompt: {
 				move: 'zurueckerklaeren_lassen',
-				text: 'Erklär den neuen Plan jetzt so, als müsstest du Mia überzeugen. Sie findet den alten angenehmer. Warum fühlt er sich besser an, obwohl er weniger bringt?'
+				text: 'Wie erklärst du Mia den neuen Plan? Ihr alter fühlt sich beim Lernen viel entspannter an – warum täuscht dieses Gefühl?'
 			},
 			quickReplies: [
 				answer(
@@ -696,7 +696,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['mehr stunden'] },
 					reply: {
 						move: 'nachhaken',
-						text: 'Mehr Zeit hilft fast immer, aber die Aufgabe hält zwölf Stunden fest. Was lässt sich an diesen zwölf Stunden ändern, ohne eine Minute dazuzugeben?'
+						text: 'Es bleibt bei zwölf Stunden. Was änderst du innerhalb dieser zwölf Stunden?'
 					},
 					nextStepId: 'plan'
 				},
@@ -705,7 +705,7 @@ const learningScenario: LabeledTutorScenario = {
 					trigger: { kind: 'contains', phrases: ['frisch'] },
 					reply: {
 						move: 'kontrastfall',
-						text: '„Frisch“ war in der Vorhersage der Vorteil nach fünf Minuten. Die Klausur liegt aber nicht fünf Minuten nach dem Lernen. Welcher der beiden Zeitpunkte ähnelt ihr mehr?'
+						text: 'Frisch im Kopf half im Versuch nur für fünf Minuten – die Klausur kommt aber nicht fünf Minuten nach dem Lesen.'
 					},
 					nextStepId: 'plan'
 				}
@@ -716,7 +716,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'rueckerklaerung',
 			prompt: {
 				move: 'transfer_stellen',
-				text: 'Letzte Frage, an einem neuen Fall: In der Klausur steht eine Kennzahlen-Aufgabe, die du noch nie gesehen hast. Woran erkennst du, ob Mittelwert, Median oder Varianz gefragt ist? Und wie würdest du genau dieses Erkennen vorher üben?'
+				text: 'Letzte Runde: In der Klausur taucht eine unbekannte Aufgabe auf. Woran merkst du, ob Mittelwert, Median oder Varianz gefragt ist – und wie übst du genau diese Auswahl vorher?'
 			},
 			quickReplies: [
 				answer(
@@ -730,7 +730,7 @@ const learningScenario: LabeledTutorScenario = {
 			id: 'abschluss',
 			prompt: {
 				move: 'abschliessen',
-				text: 'Den Plan hast du selbst umgebaut und begründet. Wenn du möchtest, schlage ich dir sechs Kalenderblöcke vor, die Inhalte bestimmst du. Fällt ein Termin aus, verschiebst du ihn einfach. Dabei geht nichts verloren.'
+				text: 'Alles klar – dein Plan steht. Wenn du magst, teilen wir jetzt sechs Blöcke ein; fällt einer aus, schiebst du ihn einfach weiter.'
 			},
 			quickReplies: [
 				answer(

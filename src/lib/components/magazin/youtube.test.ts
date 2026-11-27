@@ -59,12 +59,17 @@ test('the only iframe and the external fallback are conditional; the poster uses
 	const source = readFileSync(new URL('./YouTubeCard.svelte', import.meta.url), 'utf8');
 	const { fragment } = parse(source, { modern: true });
 	const card = fragment.nodes.find(
-		(node) => node.type === 'RegularElement' && node.name === 'article'
+		(node) => node.type === 'Component' && node.name === 'MediaCard'
 	);
-	assert.ok(card?.type === 'RegularElement');
-	const frame = card.fragment.nodes.find((node) => node.type === 'RegularElement');
-	assert.ok(frame?.type === 'RegularElement');
-	const gate = frame.fragment.nodes.find((node) => node.type === 'IfBlock');
+	assert.ok(card?.type === 'Component');
+	const frame = card.fragment.nodes.find(
+		(node) => node.type === 'SnippetBlock' && node.expression.name === 'media'
+	);
+	assert.ok(frame?.type === 'SnippetBlock');
+	const gate = frame.body.nodes.find(
+		(node) =>
+			node.type === 'IfBlock' && node.test.type === 'Identifier' && node.test.name === 'embed'
+	);
 	assert.ok(gate?.type === 'IfBlock' && gate.test.type === 'Identifier');
 	assert.equal(gate.test.name, 'embed');
 	assert.ok(
@@ -81,6 +86,19 @@ test('the only iframe and the external fallback are conditional; the poster uses
 		gate.alternate?.nodes.some((node) => node.type === 'RegularElement' && node.name === 'button')
 	);
 	assert.equal(source.match(/<iframe\b/g)?.length, 1);
-	assert.match(source, /\{#if embed\}\s*<a href=\{youtubeWatch\(/);
+	const fallback = card.fragment.nodes.find(
+		(node) =>
+			node.type === 'IfBlock' && node.test.type === 'Identifier' && node.test.name === 'embed'
+	);
+	assert.ok(fallback?.type === 'IfBlock');
+	assert.ok(
+		fallback.consequent.nodes.some(
+			(node) =>
+				node.type === 'RegularElement' &&
+				node.name === 'div' &&
+				node.fragment.nodes.some((child) => child.type === 'RegularElement' && child.name === 'a')
+		)
+	);
+	assert.match(source, /<a href=\{youtubeWatch\(/);
 	assert.doesNotMatch(source, /ytimg|preconnect|prefetch/i);
 });

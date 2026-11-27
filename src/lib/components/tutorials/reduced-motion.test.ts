@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
-import { test } from 'node:test';
+
+// `npx vitest` and `node --test` both run this file: take the runner that is there.
+const runner: string = process.env.VITEST ? 'vitest' : 'node:test';
+const { test }: Pick<typeof import('node:test'), 'test'> = await import(runner);
 
 const hooks = registerHooks({
 	resolve(specifier, context, nextResolve) {

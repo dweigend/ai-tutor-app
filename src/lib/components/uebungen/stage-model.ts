@@ -1,4 +1,11 @@
-import type { CheckResult } from '../../api/types.js';
+import { effectiveResult } from '../../api/types.js';
+import type {
+	ApiMode,
+	ApiProblem,
+	CheckResult,
+	EvidenceLevel,
+	ExerciseAttemptRequest
+} from '../../api/types.js';
 import type {
 	EditorialExercise,
 	ExerciseStage,
@@ -9,6 +16,7 @@ import type {
 // Relative module paths keep this file loadable in Node for stage-model.test.ts.
 import { speakRichText } from '../../modules/core/rich-text.js';
 import type { Confidence } from '../../modules/fader/scale.js';
+import type { IconName } from '../../modules/core/icons.js';
 import type { Finding } from '../../modules/readout/types.js';
 import type { ScreenContextInput } from '../../memory/types.js';
 
@@ -110,14 +118,43 @@ export function checkLines(picked: readonly string[], expected: readonly string[
 	return hits > 0 ? 'partial' : 'deviates';
 }
 
-const RESULT_FINDING: Record<CheckResult, Finding> = {
+/**
+ * Finding of a check result. The fourth evidence state (`nicht_pruefbar_oder_alternativweg`) has no
+ * finding: the sketch or alternative way was received, nobody judged it. The stage shows it as a
+ * neutral "Eingereicht", never as partial, never as a match.
+ */
+const RESULT_FINDING: Record<CheckResult, Finding | null> = {
 	korrekt: 'match',
 	teilweise: 'partial',
-	falsch: 'deviates'
+	falsch: 'deviates',
+	nicht_pruefbar_oder_alternativweg: null
 };
 
-export function findingOf(result: CheckResult): Finding {
+export function findingOf(result: CheckResult): Finding | null {
 	return RESULT_FINDING[result];
+}
+
+/** The neutral word of the fourth evidence state. */
+export const RECEIVED_WORD = 'Eingereicht';
+
+/** True when the answer was received but no rule can judge it (fourth evidence state). */
+export function isReceivedOnly(result: CheckResult): boolean {
+	return result === 'nicht_pruefbar_oder_alternativweg';
+}
+
+/**
+ * Status the reveal shows: the check's finding, the neutral received state, or the problem of a
+ * failed request (also neutral). Only `match` may unlock "done" in the list.
+ */
+export type RevealStatus = Finding | 'received';
+
+export function revealStatus(result: CheckResult): RevealStatus {
+	return findingOf(result) ?? 'received';
+}
+
+/** The confidence beside the answer: a number only; no words like "ohne Angabe" on screen. */
+export function confidenceFigure(confidence: Confidence): string | undefined {
+	return typeof confidence === 'number' ? `${confidence} %` : undefined;
 }
 
 /** A typed number is complete once it has a digit and does not end on the comma. */
@@ -251,4 +288,90 @@ export function stageProblems(exercise: EditorialExercise): string[] {
 	});
 	if (review && review.instrument.kind !== 'spectrum') problems.push('review must be local');
 	return problems;
+}
+
+/** The result an attempt stands for: a sent evidence level wins over the legacy result. */
+export function attemptResult(response: {
+	result: CheckResult;
+	evidenceLevel?: EvidenceLevel;
+}): CheckResult {
+	return effectiveResult(response.result, response.evidenceLevel);
+}
+
+/** Modul-2 test-split tasks are locked in the live backend (AP6); the local demo shows all. */
+export function visibleInMode(taskId: string, mode: ApiMode): boolean {
+	return mode !== 'http' || !taskId.startsWith('a-gd-');
+}
+
+/** The task a deep link asks for (`?aufgabe=` or `?task=`), unless it is locked in this mode. */
+export function openableTaskId(params: URLSearchParams, mode: ApiMode): string | null {
+	const taskId = params.get('aufgabe') ?? params.get('task');
+	return taskId && visibleInMode(taskId, mode) ? taskId : null;
+}
+
+/** Whether an in-app route can open in this mode; a link to a locked task cannot (AP6). */
+export function routeOpensInMode(route: string, mode: ApiMode): boolean {
+	const url = new URL(route, 'http://app.invalid');
+	if (url.pathname !== '/uebungen') return true;
+	const taskId = url.searchParams.get('aufgabe') ?? url.searchParams.get('task');
+	return !taskId || visibleInMode(taskId, mode);
+}
+
+/** Second line of defence: a locked task never reaches the live grader, not even by deep link. */
+export const LOCKED_TASK_PROBLEM = {
+	code: 'not_found',
+	message: 'Diese Übung ist im Live-Betrieb noch nicht freigegeben.',
+	retryable: false
+} as const satisfies ApiProblem;
+
+/**
+ * Tasks the live backend knows as `fehler_finden` without options: it rejects a choice answer.
+ * Live, they send the picked lines and tests as text and come back as a received, unjudged attempt.
+ */
+const LIVE_TEXT_TASKS: ReadonlySet<string> = new Set(['a-bp-ki-backward-pruefen']);
+
+/**
+ * Prediction tasks the live course package grades as program output (`pruefung.art: ausgabe`).
+ * Live, the chosen option is sent as the output it stands for, one printed line per program.
+ */
+const LIVE_OUTPUT_CHOICES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+	'a-akkumulator-vorhersagen': {
+		'a9-b4': '9\n4',
+		'a9-b9': '9\n9',
+		'a4-b9': '4\n9',
+		spur: '2\n5\n9\n2\n3\n4'
+	}
+};
+
+export function liveAnswer(
+	taskId: string,
+	mode: ApiMode,
+	answer: ExerciseAttemptRequest['answer'],
+	parts: { lines: readonly string[]; choice: string }
+): ExerciseAttemptRequest['answer'] {
+	if (mode !== 'http' || answer.kind !== 'choice') return answer;
+	const outputs = LIVE_OUTPUT_CHOICES[taskId];
+	if (outputs) {
+		const [optionId] = answer.optionIds;
+		const output = answer.optionIds.length === 1 ? outputs[optionId] : undefined;
+		return output ? { kind: 'text', text: output } : answer;
+	}
+	if (!LIVE_TEXT_TASKS.has(taskId)) return answer;
+	const text = [
+		parts.lines.length ? linesText(parts.lines) : '',
+		parts.choice && `Tests: ${parts.choice}`
+	]
+		.filter(Boolean)
+		.join(' · ');
+	return { kind: 'text', text: text || answer.optionIds.join(', ') };
+}
+
+/** Format sign of a list card (R6): what the learner does on the answer step. */
+export function exerciseIcon(exercise: EditorialExercise): IconName {
+	if (exercise.format === 'independent-probe') return 'flag';
+	const kinds = stageOf(exercise).steps.map((step) => step.instrument.kind);
+	if (kinds.includes('sketch')) return 'pen';
+	if (kinds.includes('lines')) return 'check';
+	if (kinds.includes('digits') || kinds.includes('spectrum')) return 'sliders';
+	return 'grid';
 }

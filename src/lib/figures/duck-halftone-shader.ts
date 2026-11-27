@@ -17,6 +17,7 @@ varying vec2 printUv;
 #ifdef HULL
 attribute vec3 hullNormal;
 uniform vec2 viewport;
+uniform float outlineWidth;
 #endif
 void main(){
  vec3 transformed=position;
@@ -31,7 +32,7 @@ void main(){
  #include <skinnormal_vertex>
  vec3 n=normalMatrix*objectNormal;
  vec2 dir=(projectionMatrix*vec4(n,0.)).xy*viewport;
- gl_Position.xy+=dir/max(length(dir),0.001)*3.0/viewport*gl_Position.w;
+ gl_Position.xy+=dir/max(length(dir),0.001)*2.0*outlineWidth/viewport*gl_Position.w;
  #endif
 }`;
 
@@ -59,11 +60,37 @@ export function setHullNormals(geometry: BufferGeometry) {
 	);
 	geometry.setAttribute('hullNormal', new Float32BufferAttribute(output, 3));
 }
+/** Below this canvas edge (CSS px) the duck is a corner-sized figure, e.g. the 72 px duck. */
+export const MINI_DUCK_PX = 120;
+/** Ink line of the full-size duck in CSS px. */
+const OUTLINE_PX = 1.5;
+/** Thinnest line that still reads as a contour without closing small shapes. */
+const MINI_OUTLINE_PX = 0.4;
+
+/**
+ * Ink line in CSS px for a canvas of `width` × `height`. A fixed line closes the small shapes of
+ * the 72 px corner duck (the far lens of the glasses turned into a black block), so the line
+ * thins with the canvas: full width from 240 px, a hairline at corner size.
+ */
+export function duckOutlineWidth(width: number, height: number): number {
+	const edge = Math.min(width, height);
+	if (!Number.isFinite(edge) || edge <= 0) return OUTLINE_PX;
+	return Math.min(OUTLINE_PX, Math.max(MINI_OUTLINE_PX, (edge / 240) * OUTLINE_PX));
+}
+
+/** Whether a canvas is so small that thin accessories (the glasses) get no ink hull at all. */
+export function isMiniDuck(width: number, height: number): boolean {
+	return Math.min(width, height) <= MINI_DUCK_PX;
+}
+
 export function createDuckOutline(viewport: Vector2) {
 	return new ShaderMaterial({
 		side: BackSide,
 		defines: { HULL: 1 },
-		uniforms: { viewport: { value: viewport } },
+		uniforms: {
+			viewport: { value: viewport },
+			outlineWidth: { value: duckOutlineWidth(viewport.x, viewport.y) }
+		},
 		vertexShader: vertex,
 		fragmentShader: `void main(){gl_FragColor=vec4(0.042,0.025,0.018,1.);
  #include <colorspace_fragment>
@@ -73,21 +100,17 @@ export function createDuckOutline(viewport: Vector2) {
 export function createDuckInk(source: MeshStandardMaterial, group: string, dpr: number) {
 	const solid =
 		group === 'acc_glasses' ||
+		// Printed or glossy details of the four v3 meshes stay flat; no halftone on them.
 		[
 			'Espresso',
 			'Porcelain',
 			'Graphite acetate',
-			'Campus visitor badge',
-			'Label paper',
-			'Club Mate print',
-			'Mate neck seal'
+			'Butter yellow paper',
+			'Club Mate print'
 		].includes(source.name);
 	return new ShaderMaterial({
 		name: source.name,
 		defines: { ...(solid ? { SOLID: 1 } : {}), ...(source.map ? { PRINT_MAP: 1 } : {}) },
-		polygonOffset: group === 'acc_campus_outfit',
-		polygonOffsetFactor: -1,
-		polygonOffsetUnits: -1,
 		uniforms: {
 			pigment: { value: source.color.clone() },
 			printMap: { value: source.map },

@@ -318,8 +318,9 @@
 		font-size: var(--type-label);
 	}
 
+	/* White with the ink edge: yellow belongs to the duck alone. */
 	.prediction {
-		fill: var(--palette-signal-yellow);
+		fill: var(--palette-white);
 		stroke: var(--palette-ink);
 		stroke-width: var(--hairline-width);
 		vector-effect: non-scaling-stroke;

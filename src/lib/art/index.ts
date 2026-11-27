@@ -1,4 +1,5 @@
 export { default as MotifImage } from './MotifImage.svelte';
+export { default as TileGraphic } from './TileGraphic.svelte';
 export {
 	MOTIFS,
 	MOTIF_WIDTHS,

@@ -1,335 +1,255 @@
 <script lang="ts">
 	import { Button } from 'bits-ui';
 	import type { Snippet } from 'svelte';
-	import { MotifImage, type MotifId } from '$lib/art';
-	import { Icon, type IconName } from '$lib/modules';
-	import type { LabelCorner, LabelTone, TileTone } from '$lib/navigation';
+	import { MotifImage, TileGraphic, type MotifId } from '$lib/art';
+	import { TypeBadge } from '$lib/modules';
+	import type { TileGraphicId, TileType } from '$lib/navigation';
+	import type { Surface } from '$lib/styles/surface';
 
-	interface Editorial {
-		category: string;
-		title: string;
-		subtitle?: string;
-		subtitleId?: string;
-		icon?: IconName;
-	}
-
+	/**
+	 * A start tile (issue #58): one flat field in its type colour, the TypeBadge with at most one
+	 * line of three words below it in the top left corner, and one picture or graphic that fills
+	 * the tile. The type is told by badge and colour alone. Signal yellow is never a tile colour.
+	 */
 	interface Props {
-		/** A short floating label for tiles without an editorial footer. */
+		type: TileType;
+		/** The one visible line, at most three words. Without it the tile is a pure graphic. */
 		title?: string;
-		/** Surface colour; under an image it is the colour shown while the image loads. */
-		tone?: TileTone;
-		/** Full-bleed motif. Its calm zone must hold the label at 4.5:1 or more. */
+		href: string;
+		/** Accessible name of the link; it contains the visible title. */
+		ariaLabel: string;
+		/** A full-bleed picture. Its top left zone must be calm enough for badge and word. */
 		art?: MotifId;
-		editorial?: Editorial;
-		media?: Snippet;
-		/** Load the motif before the others (the largest tile above the fold). */
+		/** A flat graphic in the tile's colour pair. */
+		graphic?: TileGraphicId;
+		/** An own full-bleed graphic, used by the day tile. */
+		children?: Snippet;
+		/** A topic from the learning queue: a dot raster sets it apart from the fixed areas. */
+		queued?: boolean;
+		/** Load the picture before the others (the largest tile). */
 		priority?: boolean;
-		/** `sizes` for the motif's srcset: the tile's rendered width per breakpoint. */
+		/** `sizes` for the picture's srcset: the tile's rendered width per format. */
 		sizes?: string;
-		/** Defaults to the text pair of the tone. */
-		labelTone?: LabelTone;
-		labelCorner?: LabelCorner;
-		/** Link mode: the whole tile becomes one bits-ui Button.Root anchor. */
-		href?: string;
-		/** Accessible name of the link; must start with the visible title when there is one. */
-		ariaLabel?: string;
 		/** Id of a hint for screen readers, e.g. how to reorder with the keyboard. */
 		ariaDescribedby?: string;
 		/** Key combinations the surrounding page handles for this tile. */
 		ariaKeyshortcuts?: string;
-		/** Named grid-area or grid-area shorthand inside a TileGrid. */
-		area?: string;
-		/** Render the label as a heading, for tiles that head a section. */
-		headingLevel?: 2 | 3;
-		/** The page this tile leads to is open: `■` in the corner opposite the label, aria-current. */
-		current?: boolean;
-		/** Centered graphic between the corners, used by the today tile. */
-		children?: Snippet;
 		onclick?: (event: MouseEvent) => void;
 		onkeydown?: (event: KeyboardEvent) => void;
 	}
 
 	let {
+		type,
 		title,
-		tone = 'paper',
-		art,
-		editorial,
-		media,
-		priority = false,
-		sizes = '50vw',
-		labelTone,
-		labelCorner = 'top-left',
 		href,
 		ariaLabel,
+		art,
+		graphic,
+		children,
+		queued = false,
+		priority = false,
+		sizes = '100vw',
 		ariaDescribedby,
 		ariaKeyshortcuts,
-		area,
-		headingLevel,
-		current = false,
-		children,
 		onclick,
 		onkeydown
 	}: Props = $props();
 
-	const LIGHT_TONES: readonly TileTone[] = ['ink', 'crimson'];
-
-	let resolvedLabelTone = $derived<LabelTone>(
-		labelTone ?? (LIGHT_TONES.includes(tone) ? 'light' : 'dark')
-	);
-	let variant = $derived(editorial ? 'editorial' : art ? 'image' : children ? 'graphic' : 'tone');
-	let classes = $derived(`tile${href ? ' tile-link' : ''}`);
+	/*
+	 * The nearest surface set: it gives controls on the tile their roles and the browser bar its
+	 * colour (surface.ts). The tile itself paints its type colour.
+	 */
+	const SURFACES: Record<TileType, Surface> = {
+		exercise: 'orange',
+		explanation: 'ink',
+		magazine: 'crimson',
+		whiteboard: 'ink',
+		activity: 'ink',
+		today: 'ink'
+	};
 </script>
 
-{#snippet body()}
-	{#if art || media}
-		<span class="tile-art">
-			{#if art}<MotifImage motif={art} {sizes} {priority} alt="" />{/if}
-			{@render media?.()}
+<Button.Root
+	{href}
+	{onclick}
+	{onkeydown}
+	class="tile tile-link"
+	style="--tile: var(--type-{type}); --tile-text: var(--type-{type}-text)"
+	data-type={type}
+	data-surface={SURFACES[type]}
+	data-queued={queued ? '' : undefined}
+	aria-label={ariaLabel}
+	aria-describedby={ariaDescribedby}
+	aria-keyshortcuts={ariaKeyshortcuts}
+	draggable="false"
+>
+	{#if art || graphic || children}
+		<span class="tile-media" data-media="bleed" data-graphic={art ? undefined : graphic}>
+			{#if art}
+				<span class="tile-art">
+					<MotifImage motif={art} {sizes} {priority} position="0% 50%" alt="" />
+				</span>
+			{:else if graphic}
+				<TileGraphic kind={graphic} />
+			{:else}
+				{@render children?.()}
+			{/if}
 		</span>
 	{/if}
-	{#if editorial}
-		<span class="editorial">
-			<span class="editorial-category">{editorial.category}</span>
-			{#if editorial.icon}
-				<span class="editorial-icon"><Icon name={editorial.icon} size={18} /></span>
-			{/if}
-			<span class="editorial-title">{editorial.title}</span>
-			{#if editorial.subtitle}
-				<span class="editorial-subtitle" id={editorial.subtitleId}>{editorial.subtitle}</span>
-			{/if}
-		</span>
-	{/if}
-	{#if children}
-		<span class="tile-graphic">{@render children()}</span>
-	{/if}
-	{#if title}
-		<svelte:element
-			this={headingLevel ? `h${headingLevel}` : 'span'}
-			class="tile-label {labelCorner} {resolvedLabelTone}"
-		>
-			{title}
-		</svelte:element>
-	{/if}
-	{#if current}
-		<!-- JetBrains Mono ■ means "chosen" (DESIGN.md §2.4, §7); aria-current carries the state. -->
-		<span class="tile-current {resolvedLabelTone}" aria-hidden="true">■</span>
-	{/if}
-{/snippet}
-
-{#if href}
-	<Button.Root
-		{href}
-		{onclick}
-		{onkeydown}
-		class={classes}
-		data-surface={tone}
-		aria-label={ariaLabel}
-		aria-describedby={ariaDescribedby}
-		aria-keyshortcuts={ariaKeyshortcuts}
-		aria-current={current ? 'page' : undefined}
-		data-current={current ? '' : undefined}
-		data-variant={variant}
-		draggable="false"
-		style={area ? `grid-area: ${area}` : undefined}
-	>
-		{@render body()}
-	</Button.Root>
-{:else}
-	<div class={classes} data-surface={tone} data-variant={variant} style:grid-area={area}>
-		{@render body()}
-	</div>
-{/if}
+	<span class="tile-head">
+		<span class="tile-badge"><TypeBadge {type} /></span>
+		{#if title}<span class="tile-word">{title}</span>{/if}
+	</span>
+</Button.Root>
 
 <style>
 	/* Global because Button.Root renders the anchor outside this component's scope. */
-	:global(.tile) {
-		--tile-pad: var(--step-3);
-
+	:global(a.tile) {
 		position: relative;
-		display: block;
+		display: grid;
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: hidden;
-		background: var(--surface);
-		color: var(--text);
+		container: tile / size;
+		background: var(--tile);
+		color: var(--tile-text);
 		text-decoration: none;
 		isolation: isolate;
 		border-radius: var(--radius-flat);
-		/* A long press lifts the tile (issue #10), so no iOS link preview or text selection. */
+		cursor: pointer;
+		/* A long press lifts the tile, so no iOS link preview or text selection. */
 		-webkit-touch-callout: none;
 		user-select: none;
 		-webkit-user-select: none;
 	}
 
-	@media (min-width: 900px) {
-		:global(.tile) {
-			--tile-pad: var(--step-5);
-		}
+	/*
+	 * A queued topic carries a fine dot raster in its text colour, so it never reads as one field
+	 * with the area tile of the same colour next to it. The graphic is drawn over the raster.
+	 */
+	:global(a.tile[data-queued]) {
+		background-image: radial-gradient(
+			circle,
+			color-mix(in srgb, var(--tile-text) 30%, transparent) 1px,
+			transparent 1.5px
+		);
+		background-size: 10px 10px;
 	}
 
-	.tile-art {
-		position: absolute;
-		inset: 0;
+	/* The ground of the tile shows while a picture loads (DESIGN.md §8.5). */
+	.tile-media {
 		z-index: -1;
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: clip;
 	}
 
-	:global(.tile[data-variant='editorial']) {
-		display: grid;
-		grid-template-rows: 1fr auto;
+	/*
+	 * The board graphic docks a white sheet below the head and still counts with a word beside
+	 * the badge (TileGraphic.svelte). The word now stands below the badge, so on a wide tile the
+	 * sheet starts one word line lower. A narrow tile was stacked before and keeps its inset.
+	 */
+	.tile-media[data-graphic='board'] {
+		padding-block-start: calc(var(--type-body) * var(--line-title) + var(--space-s));
 	}
 
-	:global(.tile[data-variant='editorial']) .tile-art {
+	@container tile (max-width: 9.25rem) {
+		.tile-media[data-graphic='board'] {
+			padding-block-start: 0;
+		}
+	}
+
+	/*
+	 * A picture is drawn larger than its tile and anchored at the bottom left, so its motif
+	 * leaves the top left corner to badge and word at every tile size.
+	 */
+	.tile-media:has(.tile-art) {
 		position: relative;
-		grid-row: 1;
 	}
 
-	.editorial {
-		grid-row: 2;
+	.tile-art {
+		position: absolute;
+		inset: -40% -25% 0 0;
+	}
+
+	/*
+	 * Badge and word share the top left corner on every tile, always stacked: the badge above its
+	 * word. So a wide and a narrow tile read alike. The bottom right corner stays free of text, so
+	 * the corner duck never covers a label. `--edge-top` and `--edge-left` are 1 on tiles at the
+	 * screen edge (TileGrid) and keep the head out of the safe area.
+	 */
+	.tile-head {
+		--head-pad: var(--space-m);
+
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline-start: 0;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: calc(var(--space-s) / 2);
+		max-inline-size: 100%;
+		padding: var(--head-pad);
+		padding-block-start: calc(var(--head-pad) + var(--edge-top, 0) * env(safe-area-inset-top, 0px));
+		padding-inline-start: calc(
+			var(--head-pad) + var(--edge-left, 0) * env(safe-area-inset-left, 0px)
+		);
+	}
+
+	/* The ring keeps the badge a badge on a field of its own colour. */
+	.tile-badge {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.25rem var(--space-s);
-		padding: var(--space-s) var(--tile-pad) 0.75rem;
-		color: var(--palette-ink);
-		background: var(--palette-paper);
-		font-family: var(--font-ui);
-	}
-
-	.editorial-category {
-		grid-column: 1;
-		font: 600 0.75rem / 1.25 var(--font-ui);
-		letter-spacing: 0.035em;
-		text-transform: uppercase;
-		color: var(--palette-ink-muted);
-	}
-
-	.editorial-title {
-		grid-column: 1 / -1;
-		font-size: var(--type-body);
-		line-height: 1.12;
-		font-weight: 650;
-		overflow-wrap: anywhere;
-	}
-
-	.editorial:has(.editorial-icon) .editorial-title {
-		grid-column: 1;
-		font-size: clamp(1.125rem, 2.4vw, 1.75rem);
-		letter-spacing: -0.025em;
-	}
-
-	.editorial-icon {
-		grid-area: 1 / 2 / span 2;
-		display: grid;
-		place-items: center;
-		inline-size: 2rem;
-		block-size: 2rem;
+		flex: none;
+		border: var(--icon-stroke) solid currentColor;
 		border-radius: 50%;
-		background: var(--palette-signal-yellow);
 	}
 
-	.editorial-subtitle {
-		grid-column: 1 / -1;
+	/* The word is never underlined, also not under the pointer: focus shows as the two rings. */
+	.tile-word {
+		max-inline-size: 100%;
 		overflow: hidden;
+		font: var(--font-weight-strong) var(--type-body) / var(--line-title) var(--font-ui);
 		white-space: nowrap;
 		text-overflow: ellipsis;
-		font-size: clamp(0.75rem, 1.05vw, 0.875rem);
-		line-height: 1.3;
-		color: var(--palette-ink-muted);
+		text-decoration: none;
 	}
 
-	@media (hover: hover) {
-		:global(.tile-link:hover) .editorial-title {
-			text-decoration: underline;
-			text-underline-offset: 0.14em;
+	/* A narrow or a low tile moves badge and word closer to the corner; the word gets smaller. */
+	@container tile (max-width: 9.25rem) {
+		.tile-head {
+			--head-pad: var(--space-s);
+		}
+
+		.tile-word {
+			font-size: var(--type-meta);
 		}
 	}
 
-	/* Flex, not grid: a definite box lets the graphic size itself in percent of the free space. */
-	.tile-graphic {
-		position: absolute;
-		inset: var(--tile-pad);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	/* Cell title (DESIGN.md §6): Archivo 600, 17px. One word, free in its calm zone. */
-	.tile-label {
-		position: absolute;
-		margin: 0;
-		font: 600 var(--type-body) / 1 var(--font-sans);
-		white-space: nowrap;
-		text-box: trim-both cap alphabetic;
-		text-decoration: underline transparent;
-		text-decoration-thickness: var(--focus-width);
-		text-underline-offset: 0.14em;
-		transition: text-decoration-color var(--change-time) var(--change-easing);
-	}
-
-	.tile-current {
-		position: absolute;
-		inset-block-start: var(--tile-pad);
-		inset-inline-end: var(--tile-pad);
-		font: 500 var(--type-body) / 1 var(--font-mono);
-		text-box: trim-both cap alphabetic;
-	}
-
-	.top-left {
-		inset-block-start: var(--tile-pad);
-		inset-inline-start: var(--tile-pad);
-	}
-
-	.top-right {
-		inset-block-start: var(--tile-pad);
-		inset-inline-end: var(--tile-pad);
-	}
-
-	.bottom-left {
-		inset-block-end: var(--tile-pad);
-		inset-inline-start: var(--tile-pad);
-	}
-
-	.bottom-right {
-		inset-block-end: var(--tile-pad);
-		inset-inline-end: var(--tile-pad);
-	}
-
-	.dark {
-		color: var(--palette-ink);
-	}
-
-	.light {
-		color: var(--palette-white);
-	}
-
-	:global(.tile-link) {
-		cursor: pointer;
-	}
-
-	@media (hover: hover) {
-		:global(.tile-link:hover) .tile-label {
-			text-decoration-color: currentColor;
+	/* On a small tile the word takes most of the width: the picture gives it the whole band. */
+	@container tile (max-width: 15rem) {
+		.tile-art {
+			inset-block-start: -80%;
 		}
 	}
 
-	/* Two rings, ink outside and white inside, so focus reads on every motif. */
-	:global(.tile-link:focus-visible) {
-		outline: var(--focus-width) solid var(--focus);
+	@container tile (max-height: 7.5rem) {
+		.tile-head {
+			--head-pad: var(--space-s);
+		}
+	}
+
+	/* Two rings, ink outside and white inside, so focus reads on every colour and picture. */
+	:global(a.tile:focus-visible) {
+		outline: var(--focus-width) solid var(--palette-ink);
 		outline-offset: calc(-1 * var(--focus-width));
 	}
 
-	:global(.tile-link:focus-visible)::after {
+	:global(a.tile:focus-visible)::after {
 		position: absolute;
 		inset: var(--focus-width);
-		border: var(--focus-width) solid var(--focus-halo);
+		border: var(--focus-width) solid var(--palette-white);
 		content: '';
 		pointer-events: none;
-	}
-
-	:global(.tile-link:focus-visible) .tile-label {
-		text-decoration-color: currentColor;
 	}
 </style>

@@ -72,41 +72,35 @@
 	text-transform: uppercase;
 }
 
-/*
- * Round icon button (DESIGN.md §3): a 44px circle on --card, so it reads as raised and
- * pressable on every surface. Pressed means inverted at once, back within --tap-return. The
- * focus ring follows the circle.
- */
 .m-icon-button {
 	display: inline-grid;
-	flex: none;
 	place-items: center;
-	inline-size: var(--icon-button-size);
-	block-size: var(--icon-button-size);
+	inline-size: var(--hit);
+	block-size: var(--hit);
+	flex: none;
 	padding: 0;
 	border: 0;
 	border-radius: 50%;
-	background: var(--card);
-	color: var(--text);
-	text-decoration: none;
+	background: var(--palette-white);
+	color: var(--palette-ink);
 	cursor: pointer;
 	touch-action: manipulation;
-	-webkit-tap-highlight-color: transparent;
-	transition:
-		background-color var(--tap-return) linear,
-		color var(--tap-return) linear;
+	text-decoration: none;
 }
-
-.m-icon-button:active,
-.m-icon-button[aria-pressed='true'] {
-	background: var(--text);
-	color: var(--surface);
-	transition: none;
+.m-icon-button[data-size='lg'] {
+	inline-size: var(--control);
+	block-size: var(--control);
 }
-
+.m-icon-button:is([aria-pressed='true'], [aria-current='page']) {
+	box-shadow: inset 0 0 0 1px currentColor;
+}
+.m-icon-button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
 .m-icon-button:focus-visible {
-	outline: var(--focus-width) solid var(--focus);
-	outline-offset: var(--focus-width);
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
 }
 
 /* Number and unit inside a capital label stay small: `PODCAST · 20 min` (DESIGN.md §6.5). */
@@ -431,38 +425,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: var(--step-2);
-}
-
-.digit-pad-readout {
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: var(--step-3);
-	min-block-size: var(--cell);
-	border-block-end: var(--hairline-width) solid var(--hairline);
-}
-
-.digit-pad-input {
-	position: absolute;
-	inset: 0;
-	inline-size: 100%;
-	border: 0;
-	background: transparent;
-	color: transparent;
-	caret-color: transparent;
-	font: inherit;
-	cursor: text;
-}
-
-.digit-pad-input:focus-visible {
-	outline: var(--focus-width) solid var(--focus);
-	outline-offset: calc(-1 * var(--focus-width));
-}
-
-.digit-pad-back {
-	position: relative;
-	padding-inline: var(--step-2);
 }
 
 .raster[data-layout='keys'] {
@@ -949,57 +911,6 @@
 	margin: 0;
 	font-weight: var(--font-weight-strong);
 	line-height: var(--line-title);
-}
-
-.confidence-controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-s);
-}
-
-.confidence-rating {
-	display: flex;
-	gap: var(--space-s);
-	border-radius: var(--radius-pill);
-}
-
-.confidence-rating:focus-visible {
-	outline: var(--focus-width) solid var(--focus);
-	outline-offset: var(--focus-width);
-}
-
-.confidence-segment {
-	display: grid;
-	place-items: center;
-	inline-size: var(--hit);
-	block-size: var(--hit);
-	border: 1.5px solid currentColor;
-	border-radius: 50%;
-	cursor: pointer;
-}
-
-.confidence-segment[data-filled] {
-	background: var(--mark);
-	color: var(--mark-text);
-}
-
-.confidence-none {
-	grid-auto-flow: column;
-	gap: var(--space-s);
-	padding-inline: var(--space-m);
-	border-radius: var(--radius-pill);
-	background: var(--card);
-	font-size: var(--type-meta);
-}
-
-.confidence-none[aria-pressed='true'] {
-	background: var(--mark);
-	color: var(--mark-text);
-}
-
-.confidence[data-disabled] .confidence-segment {
-	cursor: not-allowed;
 }
 
 /* ScaleFader: − readout + over a ruler with a fixed --mark. */
@@ -1574,4 +1485,11 @@ samp {
 [data-code='inline'] {
 	font-size: inherit;
 	line-height: inherit;
+}
+[data-layout='stage'] .stage-action,
+[data-layout='stage'] .stage-leave {
+	margin-inline-end: var(--corner-clearance);
+}
+[data-layout='stage'] .stage-meter {
+	padding-inline-end: var(--corner-clearance);
 }

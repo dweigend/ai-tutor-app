@@ -70,3 +70,18 @@ test('no icon font is left: no private-use code point in any stylesheet or compo
 	const strays = SOURCES.filter(({ text }) => privateUse.test(text)).map(({ file }) => file);
 	assert.deepEqual(strays, []);
 });
+
+test('each content type has its own color and indicator export', () => {
+	const tokens = readFileSync(new URL('lib/styles/tokens.css', SRC), 'utf8');
+	const exports = readFileSync(new URL('lib/modules/indicators/index.ts', SRC), 'utf8');
+	const colors = ['exercise', 'explanation', 'magazine', 'whiteboard', 'activity', 'today'].map(
+		(type) => {
+			const value = new RegExp('--type-' + type + ':\\s*([^;]+)').exec(tokens)?.[1];
+			assert.ok(value && !value.includes('yellow'));
+			return value;
+		}
+	);
+	assert.equal(new Set(colors).size, colors.length);
+	for (const name of ['ProgressDots', 'StatusSignal', 'TypeBadge'])
+		assert.match(exports, new RegExp('as ' + name + '\\b'));
+});

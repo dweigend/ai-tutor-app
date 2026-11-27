@@ -339,6 +339,7 @@ export interface StageStep {
  * before it are local. `review` is an optional local step after the reveal.
  */
 export interface ExerciseStage {
+	correctFeedback?: string;
 	/** List title without the format prefix (the format stands in the strip). */
 	title?: string;
 	steps: readonly [StageStep, ...StageStep[]];

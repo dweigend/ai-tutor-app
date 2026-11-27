@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import { screenContext } from '$lib/memory/runtime.svelte';
 	import type { EditorialEpisode } from '$lib/content';
-	import { Fader, Fold, Icon, InteractionStage, Readout, type IconName } from '$lib/modules';
+	import { Fader, Fold, IconButton, InteractionStage, Readout, type IconName } from '$lib/modules';
 	import {
 		MATRIX_COLUMNS,
 		MATRIX_ROWS,
@@ -150,15 +150,15 @@
 		steps={timeline.segments.length}
 		onexit={exit}
 	>
-		<InteractionStage.Meter href={closeHref} />
+		<div class="audio-meter">
+			<Readout.Meter step={current.index + 1} steps={timeline.segments.length} label="Kapitel" />
+		</div>
 		<section class="stage-head audio-head">
-			<InteractionStage.Context text={episode.title} />
-			<InteractionStage.Prompt text={episode.question} />
+			<InteractionStage.Prompt text={episode.question} heading="h2" />
 		</section>
 
 		<Fold.Root
 			label="Kapitel"
-			count={timeline.segments.length}
 			triggerLabel="Kapitel öffnen"
 			flat
 			class="audio-fold audio-fold-start"
@@ -187,7 +187,6 @@
 		</Fold.Root>
 		<Fold.Root
 			label="Quellen"
-			count={episode.sources.length}
 			triggerLabel="Quellen öffnen"
 			flat
 			class="audio-fold audio-fold-end"
@@ -253,42 +252,63 @@
 		<p class="visually-hidden" role="status" aria-live="polite">{announcement}</p>
 
 		<div class="podcast-controls">
-			<button type="button" class="podcast-play" aria-label={keyWord} onclick={player.toggle}>
-				<Icon name={keyIcon} />
-			</button>
+			<IconButton icon={keyIcon} label={keyWord} size="lg" onclick={player.toggle} />
 		</div>
 	</InteractionStage.Root>
 </div>
 
 <style>
+	:global(main[data-layout='feed']:has(.audio-host)) {
+		padding-block-end: 0;
+	}
+
+	.audio-host {
+		--stage-height: calc(100dvh - var(--bar) - env(safe-area-inset-top));
+	}
+
+	.audio-meter {
+		display: grid;
+		grid-area: meter;
+		justify-items: center;
+		align-items: center;
+		min-block-size: var(--hit);
+		padding-inline: var(--gutter);
+	}
+
+	.audio-instrument {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.audio-scrub-host {
+		container-type: inline-size;
+		--audio-dot: var(--dot);
+		--audio-gap: var(--dot-gap);
+	}
+
+	.audio-scrub-host :global(.audio-scrub) {
+		/* Leave room for the touch target when the grip is at either end. */
+		--dot-gap: min(var(--audio-gap), 0.5cqi);
+		--dot: min(var(--audio-dot), calc((100cqi - var(--hit) - 43 * var(--dot-gap)) / 44));
+		min-block-size: var(--hit);
+	}
+
 	.podcast-controls {
 		grid-area: action;
 		display: grid;
 		place-items: center;
 	}
 
-	.podcast-play {
-		display: grid;
-		place-items: center;
-		inline-size: var(--control);
-		block-size: var(--control);
-		border: var(--hairline-width) solid var(--mark-border);
-		border-radius: 50%;
-		background: var(--mark);
-		color: var(--mark-text);
-		cursor: pointer;
-	}
-
-	.podcast-play:focus-visible {
-		outline: var(--focus-width) solid var(--focus);
-		outline-offset: var(--focus-width);
+	@media (max-width: 22.5rem) {
+		.audio-host :global(.readout-meter) {
+			column-gap: var(--dot-gap);
+		}
 	}
 
 	.audio-host :global(.readout-matrix-cell[data-on='false']::before) {
 		box-sizing: border-box;
 		inline-size: var(--dot);
 		block-size: var(--dot);
-		border: 1.5px solid var(--text-muted);
+		border: min(var(--icon-stroke), calc(var(--dot) / 4)) solid var(--text-muted);
 		background: transparent;
 	}
 </style>

@@ -61,6 +61,8 @@ function evidence(learningGoalId: string, kind: EvidenceKind) {
 
 const learningRateTask = aiTask('a-gd-schritte-vorhersagen');
 const accumulatorTask = pythonTask('a-akkumulator-vorhersagen');
+const accumulatorFeedback =
+	'Die Ausgaben stimmen. Prüfe für dich, warum B die Summe in jedem Durchlauf zurücksetzt.';
 const retrievalTask = aiTask('a-bp-addieren-erklaeren');
 const aiBackwardTask = aiTask('a-bp-ki-backward-pruefen');
 const aiAverageTask = pythonTask('a-ki-durchschnitt-pruefen');
@@ -75,7 +77,7 @@ const mulBackwardCode =
 const averageCode =
 	'def durchschnitt_ueber(werte, grenze):\n    """Berechnet den Durchschnitt aller Werte, die größer als grenze sind."""\n    summe = 0\n    for w in werte:\n        if w > grenze:\n            summe += w          # nur relevante Werte aufsummieren\n    return summe / len(werte)   # Durchschnitt bilden';
 
-// Facts and group card of the price chain (textredaktion-v2.md §1.7), shared by both steps.
+// Facts of the price chain (textredaktion-v2.md §1.7), shared by both steps.
 const priceFacts = {
 	kind: 'cells',
 	cells: [
@@ -85,8 +87,6 @@ const priceFacts = {
 		{ label: 'm MwSt.', value: '0,19' }
 	]
 } as const satisfies StageFacts;
-const priceGroupCard =
-	'Allein rechnen. Dann die Graphen paarweise vergleichen und jeden Knoten laut erklären. Danach allein erneut antworten.';
 
 const pythonBlock = (code: string) => `\`\`\`python\n${code}\n\`\`\``;
 
@@ -96,10 +96,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'quick-challenge',
 		level: 1,
 		title: 'Wettlauf zum tiefsten Punkt',
-		subtitle: 'Am selben Hang macht Programm B viermal so große Schritte.',
+		subtitle: 'Lernrate',
 		minutes: 5,
 		prompt:
-			'f(w) = (w − 3)², Start bei w = 5. Programm A nutzt die Lernrate η = 0,25 und gibt 4, 3,5, 3,25 aus. Programm B nutzt η = 1. Welche drei Werte gibt Programm B aus? Leg dich fest, bevor du rechnest.',
+			'f(w) = (w − 3)², Start bei w = 5. Programm A nutzt Lernrate 0,25 und gibt 4, 3,5, 3,25 aus. Programm B nutzt Lernrate 1. Welche drei Werte gibt B nacheinander aus?',
 		response: {
 			answerKind: 'choice',
 			options: options(
@@ -120,13 +120,13 @@ export const exercises: readonly EditorialExercise[] = [
 					facts: {
 						kind: 'pair',
 						sides: [
-							{ key: 'A', label: 'η 0,25', value: '4 · 3,5 · 3,25' },
-							{ key: 'B', label: 'η 1', value: '? · ? · ?' }
+							{ key: 'A', label: 'Lernrate 0,25', value: '4 · 3,5 · 3,25' },
+							{ key: 'B', label: 'Lernrate 1', value: '? · ? · ?' }
 						]
 					},
-					ask: 'Welche drei Werte gibt B aus?',
+					ask: 'Welche drei Werte gibt B nacheinander aus?',
 					spoken:
-						'f von w gleich w minus drei, zum Quadrat. Start bei w gleich fünf. A mit eta null Komma zwei fünf gibt vier, drei Komma fünf, drei Komma zwei fünf aus. Welche drei Werte gibt B mit eta gleich eins aus?',
+						'f von w gleich w minus drei, zum Quadrat. Start bei w gleich fünf. A mit Lernrate null Komma zwei fünf gibt vier, drei Komma fünf, drei Komma zwei fünf aus. Welche drei Werte gibt B mit Lernrate eins nacheinander aus?',
 					instrument: {
 						kind: 'choice',
 						layout: 'grid',
@@ -146,10 +146,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'quick-challenge',
 		level: 1,
 		title: 'Zwei Zeilen tauschen den Platz',
-		subtitle: 'Dieselben vier Befehle, doch eine Zeile rutscht in die Schleife.',
+		subtitle: 'Python-Schleife',
 		minutes: 5,
 		prompt:
-			'Programm A:\n\n```python\nsumme = 0\nfor x in [2, 3, 4]:\n    summe = summe + x\nprint(summe)\n```\n\nProgramm B:\n\n```python\nfor x in [2, 3, 4]:\n    summe = 0\n    summe = summe + x\nprint(summe)\n```\n\nWas geben die beiden Programme aus?',
+			'Programm A:\n\n```python\nsumme = 0\nfor x in [2, 3, 4]:\n    summe = summe + x\nprint(summe)\n```\n\nProgramm B:\n\n```python\nfor x in [2, 3, 4]:\n    summe = 0\n    summe = summe + x\nprint(summe)\n```\n\nWas geben A und B am Ende aus?',
 		response: {
 			answerKind: 'choice',
 			options: options(
@@ -167,6 +167,7 @@ export const exercises: readonly EditorialExercise[] = [
 		],
 		sources: [taskSource('Aufgabe · Akkumulator vorhersagen', accumulatorTask)],
 		stage: {
+			correctFeedback: accumulatorFeedback,
 			steps: [
 				{
 					id: 'vorhersage',
@@ -184,7 +185,7 @@ export const exercises: readonly EditorialExercise[] = [
 							}
 						]
 					},
-					ask: 'Was geben A und B aus?',
+					ask: 'Was geben A und B am Ende aus?',
 					// Program output, not sentences: the rows speak in Mono (art director, #11).
 					instrument: { kind: 'choice', layout: 'rows', voice: 'value' }
 				}
@@ -196,10 +197,9 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'retrieval',
 		level: 1,
 		title: 'Doppelte Spur zur selben Zahl',
-		subtitle: 'Aus dem Gedächtnis: Ein Wert speist beide Seiten einer Rechnung.',
+		subtitle: 'Backprop',
 		minutes: 3,
-		prompt:
-			'Ohne nachzusehen: L = d · d mit d = 4 und L.grad = 1. Welchen Wert hat d.grad? Schreib nur die Zahl. Die Begründung sagst du dir selbst, bevor du die Rückseite aufdeckst.',
+		prompt: 'L = d · d mit d = 4 und L.grad = 1. Wie groß ist d.grad?',
 		response: { answerKind: 'text' },
 		askConfidence: true,
 		learningGoalIds: ['lz-rechengraph-gradienten', 'lz-autodiff-implementieren'],
@@ -217,20 +217,17 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'L.grad', value: '1' }
 						]
 					},
-					ask: 'Welchen Wert hat d.grad?',
-					more: 'Ohne nachzusehen. Die Begründung sagst du dir selbst, bevor die Rückseite kommt.',
+					ask: 'Wie groß ist d.grad?',
 					spoken:
-						'L gleich d mal d. d gleich vier, L Punkt grad gleich eins. Welchen Wert hat d Punkt grad?',
+						'L gleich d mal d. d gleich vier, L Punkt grad gleich eins. Wie groß ist d Punkt grad?',
 					instrument: { kind: 'digits', decimals: 0, signed: true }
 				}
 			],
-			// Proposal (#11, SpectrumSlider recipe): a local yes/no self-check after the back side.
-			// Not in textredaktion v2.2; waits for the editorial pass and David's approval.
 			review: {
 				id: 'rueckseite',
 				context: formulaRef('backprop-quadrat'),
-				spoken: 'L gleich d mal d. Deckt sich deine Begründung mit der Rückseite?',
-				ask: 'Deckt sich deine Begründung mit der Rückseite?',
+				spoken: 'L gleich d mal d. Hattest du beide Pfade zu L auf dem Schirm?',
+				ask: 'Hattest du beide Pfade zu L auf dem Schirm?',
 				instrument: { kind: 'spectrum' }
 			}
 		}
@@ -240,10 +237,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'plausible-but-wrong',
 		level: 2,
 		title: 'Der blinde Fleck im Prüfstand',
-		subtitle: 'Die KI liefert fehlerhaften Code, den der erste Test durchwinkt.',
+		subtitle: 'KI-Code prüfen',
 		minutes: 8,
 		prompt:
-			'Ein Sprachmodell hat dir den Rückwärtsschritt für die Multiplikation geschrieben. Dein Test mit x · x ist grün. Welche Prüffälle decken den Fehler sicher auf? Wähle alle zutreffenden.',
+			'Ein Sprachmodell hat den Rückwärtsschritt für die Multiplikation geschrieben. Der Test mit x · x ist grün. Welche Tests decken den Fehler auf?',
 		modelAnswer: pythonBlock(mulBackwardCode),
 		passingExample:
 			'x = Value(3.0); y = x * x; y.backward() ergibt x.grad == 6.0. Der Test ist grün.',
@@ -280,7 +277,7 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'Status', value: 'grün' }
 						]
 					},
-					ask: 'Welche zwei Zeilen schreiben den falschen Gradienten?',
+					ask: 'Welche zwei Zeilen berechnen den Gradienten falsch?',
 					instrument: { kind: 'lines', code: mulBackwardCode, max: 2 },
 					localCheck: { kind: 'lines', expected: ['z5', 'z6'] }
 				},
@@ -296,7 +293,7 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'Status', value: 'grün' }
 						]
 					},
-					ask: 'Welche Prüffälle decken den Fehler auf?',
+					ask: 'Welche Tests decken den Fehler auf?',
 					instrument: {
 						kind: 'choice',
 						layout: 'rows',
@@ -311,10 +308,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'plausible-but-wrong',
 		level: 2,
 		title: 'Zufallstreffer beim Durchschnitt',
-		subtitle: 'Das Vorzeigebeispiel geht glatt auf, doch die Formel täuscht.',
+		subtitle: 'Python-Test',
 		minutes: 8,
 		prompt:
-			'Die KI-Funktion soll den Durchschnitt aller Werte über einer Grenze liefern. Ohne Treffer soll None zurückkommen. Welche Aufrufe mit grenze = 5 decken einen Fehler auf? Wähle alle zutreffenden.',
+			'Die KI-Funktion soll den Durchschnitt aller Werte über einer Grenze liefern – ohne Treffer None. Bei welchen Listen mit grenze = 5 rechnet sie falsch?',
 		modelAnswer: pythonBlock(averageCode),
 		passingExample: 'durchschnitt_ueber([10, 20, 30], 5) ergibt 20.0, wie erwartet.',
 		counterexamplePrompt:
@@ -352,7 +349,7 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'mit [10, 20, 30]', value: '20.0' }
 						]
 					},
-					ask: 'Welche Zeile liefert den falschen Durchschnitt?',
+					ask: 'In welcher Zeile steckt der Rechenfehler?',
 					instrument: { kind: 'lines', code: averageCode, max: 1 },
 					localCheck: { kind: 'lines', expected: ['z7'] }
 				},
@@ -367,7 +364,7 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'mit [10, 20, 30]', value: '20.0' }
 						]
 					},
-					ask: 'Welche Aufrufe decken einen Fehler auf?',
+					ask: 'Bei welchen Listen rechnet die Funktion falsch?',
 					instrument: { kind: 'choice', layout: 'grid' }
 				}
 			]
@@ -378,10 +375,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'contrast-lab',
 		level: 2,
 		title: 'Abstieg durch die steile Schlucht',
-		subtitle: 'Eine Richtung fällt zehnmal steiler ab als die andere.',
+		subtitle: 'Zwei Achsen',
 		minutes: 12,
 		prompt:
-			'Zwei Verlustlandschaften, gleicher Start (1, 1), gleiches Minimum im Ursprung: f = x² + y² und g = x² + 10y². Am Start zeigt der negative Gradient bei f auf (−2, −2), bei g auf (−2, −20). Bei g wird y pro Schritt mit dem Faktor (1 − 20η) multipliziert. Wie verläuft y bei η = 0,085? Sag es voraus, bevor du die Kurve freischaltest.',
+			'Zwei Verlustlandschaften mit Start bei (1, 1): f = x² + y² und g = x² + 10y². Bei g wird y pro Schritt mit (1 − 20 · Lernrate) multipliziert. Wie bewegt sich y bei Lernrate 0,085?',
 		response: {
 			answerKind: 'choice',
 			options: options(
@@ -404,13 +401,13 @@ export const exercises: readonly EditorialExercise[] = [
 						cells: [
 							{ label: 'Start', value: '(1, 1)' },
 							{ label: 'Faktor für y', value: formulaRef('gd-landschaft-faktor') },
-							{ label: 'η', value: '0,085' }
+							{ label: 'Lernrate', value: '0,085' }
 						]
 					},
-					ask: 'Wie verläuft y bei g?',
+					ask: 'Wie bewegt sich y bei g mit jedem Schritt?',
 					more: 'Beide Minima im Ursprung. Negativer Gradient am Start: g (−2, −20), f (−2, −2).',
 					spoken:
-						'f gleich x Quadrat plus y Quadrat, g gleich x Quadrat plus zehn y Quadrat. Start bei eins, eins. Bei g wird y pro Schritt mit eins minus zwanzig eta multipliziert. Wie verläuft y bei eta gleich null Komma null acht fünf?',
+						'f gleich x Quadrat plus y Quadrat, g gleich x Quadrat plus zehn y Quadrat. Start bei eins, eins. Bei g wird y pro Schritt mit eins minus zwanzig mal Lernrate multipliziert. Wie bewegt sich y bei Lernrate null Komma null acht fünf?',
 					instrument: { kind: 'choice', layout: 'rows' }
 				}
 			]
@@ -421,10 +418,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'deep-dive',
 		level: 3,
 		title: 'Kettenreaktion an der Ladenkasse',
-		subtitle: 'Ein Prozentpunkt mehr Aufschlag bewegt den Preis im Onlineshop.',
+		subtitle: 'Kettenregel',
 		minutes: 25,
 		prompt:
-			'Ein Onlineshop rechnet P = (E · (1 + s) + v) · (1 + m) mit Einkaufspreis E = 40 €, Aufschlag s = 0,5, Versand v = 5 € und Mehrwertsteuer m = 0,19. Zeichne zuerst den Rechengraphen auf Papier, rechne vorwärts und erkläre jeden Knoten laut. Dann rückwärts: Um wie viel Euro steigt P, wenn der Aufschlag um einen Prozentpunkt steigt und alles andere gleich bleibt? In der Gruppe: erst allein rechnen, dann die Graphen paarweise vergleichen, danach allein erneut antworten.',
+			'Ein Onlineshop rechnet P = (E · (1 + s) + v) · (1 + m) mit E = 40 €, Aufschlag s = 0,5, Versand v = 5 € und MwSt. m = 0,19. Rechne P erst vorwärts auf Papier aus. Dann rückwärts: Um wie viel Euro steigt P, wenn s um einen Prozentpunkt steigt?',
 		response: { answerKind: 'text' },
 		askConfidence: true,
 		learningGoalIds: ['lz-rechengraph-gradienten'],
@@ -435,10 +432,9 @@ export const exercises: readonly EditorialExercise[] = [
 					id: 'papier',
 					context: formulaRef('preis-kette'),
 					facts: priceFacts,
-					ask: 'Zeichne den Rechengraphen auf Papier und rechne ihn vorwärts.',
-					more: `Erkläre jeden Knoten laut.\n\n${priceGroupCard}`,
+					ask: 'Skizziere die Rechnung auf Papier und rechne P aus.',
 					spoken:
-						'P gleich, in Klammern, E mal eins plus s, plus v, Klammer zu, mal eins plus m. Zeichne den Rechengraphen auf Papier und rechne ihn vorwärts.',
+						'P gleich, in Klammern, E mal eins plus s, plus v, Klammer zu, mal eins plus m. Skizziere die Rechnung auf Papier und rechne P aus.',
 					instrument: { kind: 'paper' }
 				},
 				{
@@ -448,7 +444,7 @@ export const exercises: readonly EditorialExercise[] = [
 					ask: 'Um wie viel Euro steigt P, wenn s um einen Prozentpunkt steigt?',
 					spoken:
 						'P gleich, in Klammern, E mal eins plus s, plus v, Klammer zu, mal eins plus m. Um wie viel Euro steigt P, wenn s um einen Prozentpunkt steigt?',
-					more: `Alle anderen Werte bleiben gleich.\n\n${priceGroupCard}`,
+					more: 'Alle anderen Werte bleiben gleich.',
 					instrument: { kind: 'digits', decimals: 3, signed: true, unit: '€' }
 				}
 			]
@@ -459,10 +455,10 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'deep-dive',
 		level: 2,
 		title: 'Schaltplan einer Gleichung',
-		subtitle: 'Am Whiteboard zeigst du, wo sich ein Rechenpfad verzweigt.',
+		subtitle: 'Rechengraph',
 		minutes: 8,
 		prompt:
-			'Skizziere auf dem Whiteboard den Rechengraphen für e = a · b, d = e + c und L = d · d. Zeichne die Knoten, die Kantenrichtungen und beide Pfade von d zu L ein, bevor du die Skizze abgibst.',
+			'Zeichne den Rechengraphen für e = a · b, d = e + c und L = d · d mit Pfeilrichtung und beiden Pfaden von d zu L.',
 		response: { answerKind: 'whiteboard' },
 		askConfidence: true,
 		learningGoalIds: ['lz-rechengraph-gradienten'],
@@ -481,9 +477,9 @@ export const exercises: readonly EditorialExercise[] = [
 							{ label: 'L', value: 'd · d' }
 						]
 					},
-					ask: 'Zeichne den Rechengraphen mit Kantenrichtung und beiden Pfaden d → L.',
+					ask: 'Zeichne den Rechengraphen mit Pfeilrichtung und beiden Pfaden d → L.',
 					spoken:
-						'Zeichne den Rechengraphen für e gleich a mal b, d gleich e plus c, L gleich d mal d, mit Kantenrichtung und beiden Pfaden von d zu L.',
+						'Zeichne den Rechengraphen für e gleich a mal b, d gleich e plus c, L gleich d mal d, mit Pfeilrichtung und beiden Pfaden von d zu L.',
 					instrument: { kind: 'sketch' }
 				}
 			]
@@ -494,10 +490,9 @@ export const exercises: readonly EditorialExercise[] = [
 		format: 'independent-probe',
 		level: 3,
 		title: 'Zwei Schritte ohne Lotsen',
-		subtitle: 'Du rechnest den Abstieg allein zu Ende, ohne Tutor und Lernspur.',
+		subtitle: 'Ohne Hilfe',
 		minutes: 6,
-		prompt:
-			'Diese Probe läuft ohne Tutor und ohne Zugriff auf deine Lernspur. L(w) = (2w − 4)², Start w₀ = 0, Lernrate η = 0,1. Welchen Wert hat w₂ nach zwei Schritten?',
+		prompt: 'L(w) = (2w − 4)², Start w₀ = 0, Lernrate 0,1. Wie groß ist w₂ nach zwei Schritten?',
 		response: { answerKind: 'text' },
 		askConfidence: true,
 		learningGoalIds: ['lz-lernrate-erklaeren', 'lz-gradienten-vorhersagen-kalibrieren'],
@@ -512,13 +507,12 @@ export const exercises: readonly EditorialExercise[] = [
 						kind: 'cells',
 						cells: [
 							{ label: 'w₀', value: '0' },
-							{ label: 'η', value: '0,1' }
+							{ label: 'Lernrate', value: '0,1' }
 						]
 					},
-					ask: 'Welchen Wert hat w₂?',
-					more: 'Diese Probe läuft ohne Tutor und ohne Zugriff auf deine Lernspur.',
+					ask: 'Wie groß ist w₂ nach zwei Schritten?',
 					spoken:
-						'L von w gleich zwei w minus vier, zum Quadrat. w null gleich null, eta gleich null Komma eins. Welchen Wert hat w zwei?',
+						'L von w gleich zwei w minus vier, zum Quadrat. w null gleich null, Lernrate null Komma eins. Wie groß ist w zwei nach zwei Schritten?',
 					instrument: { kind: 'digits', decimals: 2, signed: true }
 				}
 			]
@@ -533,34 +527,37 @@ export const exercises: readonly EditorialExercise[] = [
 export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 	{
 		task: learningRateTask,
-		rules: [choiceRule(['pendeln'], 'Faktor 1 − 2η = −1: gleicher Abstand, kippendes Vorzeichen.')],
-		feedback: 'Rechne den Faktor (1 − 2η) für η = 1 aus und wende ihn auf den Abstand 2 an.',
+		rules: [
+			choiceRule(
+				['pendeln'],
+				'Faktor 1 − 2 · Lernrate = −1: gleicher Abstand, kippendes Vorzeichen.'
+			)
+		],
+		feedback:
+			'Rechne den Faktor (1 − 2 · Lernrate) für Lernrate 1 aus und wende ihn auf den Abstand 2 an.',
 		evidence: [evidence('lz-lernrate-erklaeren', 'vorhersage')],
 		optionFeedback: {
-			pendeln:
-				'Richtig. Der Abstand zum Minimum wird mit (1 − 2η) = −1 multipliziert. w springt zwischen 1 und 5.',
+			pendeln: 'Der Abstand zum Minimum wird mit −1 multipliziert – w springt zwischen 1 und 5.',
 			halbieren:
-				'Das ist Programm A. Bei B ist die Lernrate viermal so groß, also ändert sich der Faktor (1 − 2η).',
+				'Das ist Programm A. Bei B ist die Lernrate viermal so groß, also kippt der Faktor auf −1.',
 			treffer:
-				'Ein Schritt genau ins Minimum passiert bei η = 0,5, wo der Faktor 0 ist. Bei η = 1 schießt w um denselben Abstand übers Ziel.',
+				'Direkt ins Minimum triffst du bei Lernrate 0,5 (Faktor 0). Bei Lernrate 1 schießt w um denselben Abstand übers Ziel.',
 			divergiert:
-				'Das wäre η = 1,5 mit dem Faktor −2. Bei η = 1 wächst der Abstand nicht, er bleibt gleich.'
+				'Das wäre Lernrate 1,5 mit Faktor −2. Bei Lernrate 1 bleibt der Abstand gleich groß.'
 		}
 	},
 	{
 		task: accumulatorTask,
-		rules: [
-			choiceRule(['a9-b4'], 'A sammelt 2 + 3 + 4. B setzt summe in jedem Durchlauf neu auf 0.')
-		],
-		feedback: 'Verfolge summe Zeile für Zeile und achte darauf, wo summe = 0 steht.',
+		rules: [choiceRule(['a9-b4'], accumulatorFeedback)],
+		feedback: 'Verfolge summe Zeile für Zeile und schau genau hin, wo summe = 0 steht.',
 		evidence: [evidence('lz-akkumulator-erklaeren', 'vorhersage')],
 		optionFeedback: {
 			'a9-b4':
-				'Richtig. In B steht der Startwert in der Schleife. Übrig bleibt nur der letzte Durchlauf, 0 + 4.',
+				'In B steht summe = 0 mitten in der Schleife – übrig bleibt nur der letzte Durchlauf: 0 + 4.',
 			'a9-b9':
-				'Hier wirkt der Startwert in B wie einmal gesetzt. Er wird aber in jedem Durchlauf erneut auf 0 gesetzt.',
-			'a4-b9': 'Die Ergebnisse sind vertauscht. Welches Programm setzt summe nur einmal auf 0?',
-			spur: 'print steht nach der Schleife und läuft deshalb nur einmal. Die Zwischenwerte sind richtig verfolgt, werden aber nicht ausgegeben.'
+				'In B wird summe nicht einmal, sondern in jedem Durchlauf wieder auf 0 zurückgesetzt.',
+			'a4-b9': 'Genau andersherum: Welches Programm setzt summe nur einmal vor der Schleife auf 0?',
+			spur: 'print steht hinter der Schleife und läuft deshalb nur einmal am Ende.'
 		}
 	},
 	{
@@ -568,16 +565,12 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		rules: [
 			...textRule(
 				['8'],
-				'd steht an zwei Eingängen von L. Beide Beiträge von je 4 werden addiert.'
+				'd steht an beiden Eingängen von L – beide Beiträge von je 4 addieren sich zu 8.'
 			),
-			...textRule(
-				['4'],
-				'Ein Pfad stimmt. d steht aber an zwei Eingängen von L, und jeder liefert einen Beitrag.',
-				true
-			)
+			...textRule(['4'], 'Ein Pfad stimmt schon. Über wie viele Eingänge geht d in L ein?', true)
 		],
 		feedback:
-			'Rückseite: L = d · d hat zwei Eingänge. Jeder liefert den anderen Faktor mal L.grad, also 4. Mit += ergibt das 8.',
+			'Noch nicht. Schau, an wie vielen Eingängen von L das d steht – und was += mit jedem Beitrag macht.',
 		evidence: [evidence('lz-rechengraph-gradienten', 'anwendung')]
 	},
 	{
@@ -585,26 +578,25 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		rules: [
 			choiceRule(
 				['ungleich', 'zentral'],
-				'Beide Fälle haben verschiedene Faktoren. Der Code liefert (2, −3) statt (−3, 2), maximale Abweichung 5.'
+				'Beide Tests nutzen verschiedene Faktoren: Der Code liefert (2, −3) statt (−3, 2).'
 			),
-			choiceRule(['ungleich'], 'Dieser Fall entlarvt den Fehler. Ein zweiter auch.', true),
+			choiceRule(['ungleich'], 'Dieser Test deckt den Fehler auf – ein zweiter ebenfalls.', true),
 			choiceRule(
 				['zentral'],
-				'Die numerische Probe entlarvt den Fehler. Ein zweiter Fall auch.',
+				'Die numerische Probe deckt den Fehler auf – ein zweiter Test ebenfalls.',
 				true
 			)
 		],
 		feedback:
-			'Bei gleichen Faktoren sind „eigener Wert“ und „Wert des anderen“ dieselbe Zahl. Prüffälle brauchen zwei verschiedene Faktoren.',
+			'Bei gleichen Faktoren liefern „eigener Wert“ und „anderer Faktor“ dieselbe Zahl. Du brauchst zwei verschiedene Zahlen.',
 		evidence: [evidence('lz-ki-backprop-pruefen', 'fehlerfund')],
 		optionFeedback: {
 			'x-mal-x':
-				'Das ist genau der grüne Test. Bei x · x sind beide Faktoren gleich, die Vertauschung bleibt unsichtbar.',
+				'Genau dieser Test war grün: Bei x · x sind beide Faktoren gleich, die Vertauschung fällt nicht auf.',
 			ungleich:
-				'Deckt den Fehler auf. Richtig wäre a.grad = −3 und b.grad = 2, der Code liefert 2 und −3.',
-			gleich: 'Auch hier sind beide Faktoren gleich. Der Fehler bleibt unsichtbar.',
-			zentral:
-				'Deckt den Fehler auf, und zwar ohne die richtige Lösung zu kennen. Das ist der Wert eines eigenen Prüfwerkzeugs.'
+				'Deckt den Fehler auf: Richtig ist a.grad = −3 und b.grad = 2, der Code liefert 2 und −3.',
+			gleich: 'Auch hier sind beide Faktoren gleich (2 und 2) – der Fehler bleibt unsichtbar.',
+			zentral: 'Deckt den Fehler auf, selbst ohne die Ableitungsformel im Kopf zu haben.'
 		}
 	},
 	{
@@ -612,28 +604,29 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		rules: [
 			choiceRule(
 				['eins-zehn-zwanzig', 'eins-zwei'],
-				'Beide entlarven die Funktion: Sie teilt durch alle Werte und kennt kein None.'
+				'Beide knacken die Funktion: Sie teilt durch alle Elemente und fängt leere Treffer nicht ab.'
 			),
 			choiceRule(
 				['eins-zehn-zwanzig'],
-				'Dieser Aufruf entlarvt den Nenner. Ein zweiter Fehler fehlt noch.',
+				'Deckt den falschen Nenner auf – ein zweiter Fehler steckt noch drin.',
 				true
 			),
 			choiceRule(
 				['eins-zwei'],
-				'Dieser Aufruf entlarvt den fehlenden None-Fall. Der Nenner ist ein zweiter Fehler.',
+				'Deckt das fehlende None auf – beim Nenner steckt noch ein zweiter Fehler.',
 				true
 			)
 		],
 		feedback:
-			'Die Beispiele der KI liegen alle über der Grenze. Ein Fehler zeigt sich erst, wenn Werte darunter liegen.',
+			'Solange alle Werte über 5 liegen, fällt der falsche Nenner nicht auf. Nimm Werte kleiner oder gleich 5 dazu.',
 		evidence: [evidence('lz-ki-loesung-pruefen', 'fehlerfund')],
 		optionFeedback: {
 			'zehn-zwanzig-dreissig':
-				'Das ist das Beispiel der KI. Alle Werte liegen über 5, deshalb stimmt der falsche Nenner zufällig.',
-			'sechs-acht': 'Auch hier liegen alle Werte über der Grenze. Der Fehler bleibt verborgen.',
-			'eins-zehn-zwanzig': 'Deckt den Fehler auf: 30 / 3 = 10.0 statt 30 / 2 = 15.0.',
-			'eins-zwei': 'Deckt den Fehler auf: Ohne Treffer kommt 0.0 statt None zurück.'
+				'Alle drei Werte liegen über 5 – deshalb stimmt len(werte) hier zufällig.',
+			'sechs-acht': 'Auch hier liegen beide Werte über 5 – der falsche Nenner fällt nicht auf.',
+			'eins-zehn-zwanzig':
+				'Deckt den Fehler auf: Die Funktion rechnet 30 / 3 = 10.0 statt 30 / 2 = 15.0.',
+			'eins-zwei': 'Deckt den Fehler auf: Ohne Treffer gibt sie 0.0 statt None zurück.'
 		}
 	},
 	{
@@ -641,19 +634,19 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		rules: [
 			choiceRule(
 				['zickzack-abklingend'],
-				'Faktor 1 − 20 · 0,085 = −0,7: Das Vorzeichen kippt, der Betrag schrumpft.'
+				'Faktor 1 − 20 · 0,085 = −0,7: Vorzeichen wechselt, Abstand schrumpft.'
 			)
 		],
-		feedback: 'Rechne den Faktor 1 − 20η aus und schau auf Vorzeichen und Betrag.',
+		feedback: 'Rechne 1 − 20 · 0,085 aus und schau auf Vorzeichen und Betrag.',
 		evidence: [evidence('lz-lernrate-erklaeren', 'vorhersage')],
 		optionFeedback: {
 			monoton:
-				'Das gilt für η = 0,04 mit dem Faktor 0,2. Bei 0,085 ist der Faktor negativ, y wechselt das Vorzeichen.',
+				'Glatt ohne Vorzeichenwechsel läuft y nur unterhalb von Lernrate 0,05. Bei 0,085 ist der Faktor −0,7.',
 			'zickzack-abklingend':
-				'Richtig. Der Faktor −0,7 kippt das Vorzeichen, der Betrag schrumpft. Die flache x-Richtung läuft mit 0,83 glatt.',
+				'Faktor −0,7 heißt: jede Runde auf die andere Seite, aber näher an 0. In x-Richtung geht es mit Faktor 0,83 ruhig voran.',
 			'zickzack-divergent':
-				'Das beginnt erst oberhalb von η = 0,1. Bei η = 0,105 ist der Faktor −1,1, dann wachsen die Sprünge.',
-			'ein-schritt': 'Das passiert bei η = 0,05, wo der Faktor genau 0 ist.'
+				'Aufschaukeln beginnt erst über Lernrate 0,1, wenn der Faktor kleiner als −1 wird.',
+			'ein-schritt': 'Genau bei 0 landest du nur mit Lernrate 0,05 (Faktor 0).'
 		}
 	},
 	{
@@ -661,33 +654,37 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		rules: [
 			...textRule(
 				['0,476', '0.476', '0,476 €', '0.476 €'],
-				'∂P/∂s = E · (1 + m) = 47,6 € je Einheit von s. Ein Prozentpunkt ist 0,01, also 0,476 €.'
+				'∂P/∂s = E · (1 + m) = 47,6 € pro ganzer Einheit – ein Prozentpunkt (0,01) macht 0,476 €.'
 			),
-			...textRule(['0,48', '0.48', '0,48 €'], 'Gerundet richtig. Exakt sind es 0,476 €.', true),
+			...textRule(['0,48', '0.48', '0,48 €'], 'Gerundet dran – exakt sind es 0,476 €.', true),
 			...textRule(
 				['47,6', '47.6', '47,6 €'],
-				'Das ist ∂P/∂s je ganzer Einheit von s. Ein Prozentpunkt ist aber 0,01.',
+				'Fast: 47,6 € gilt für +1,00 beim Aufschlag, gefragt ist ein Prozentpunkt (+0,01).',
 				true
 			)
 		],
 		feedback:
-			'Geh rückwärts vom Endpreis: Wie stark hängt P von E · (1 + s) ab, und wie stark hängt das von s ab?',
+			'Geh vom Endpreis rückwärts: Wie stark wirkt E · (1 + s) auf P, und wie stark wirkt s darauf?',
 		evidence: [evidence('lz-rechengraph-gradienten', 'transfer')]
 	},
 	{
 		task: graphSketchTask,
 		rules: [],
 		feedback:
-			'Der Demo-Modus kann die Skizze nicht automatisch bewerten. Prüfe selbst: Sind e = a · b, d = e + c und beide Pfade von d zu L eingezeichnet? Für gezielte Rückfragen übergib die Skizze im Tutor.',
+			'Prüfe selbst: Sind e = a · b, d = e + c und beide Pfade von d zu L eingezeichnet? Wenn du Feedback willst, schick die Skizze an den Tutor.',
 		evidence: []
 	},
 	{
 		task: probeTask,
 		rules: [
-			...textRule(['1,92', '1.92'], 'w₁ = 1,6 und w₂ = 1,92.'),
-			...textRule(['1,6', '1.6'], 'Das ist w₁. Ein Schritt fehlt noch.', true)
+			...textRule(['1,92', '1.92'], 'Nach Schritt 1 ist w₁ = 1,6, nach Schritt 2 dann w₂ = 1,92.'),
+			...textRule(
+				['1,6', '1.6'],
+				'Das ist w₁ nach dem ersten Schritt – rechne noch einen zweiten.',
+				true
+			)
 		],
-		feedback: 'Die Probe ist gespeichert. Der Gradient ist 4 · (2w − 4).',
+		feedback: 'Der Gradient ist 4 · (2w − 4). Rechne damit erst w₁ und dann w₂ aus.',
 		evidence: [evidence('lz-lernrate-erklaeren', 'anwendung')]
 	}
 ];

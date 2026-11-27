@@ -8,7 +8,8 @@
 		IDLE_GAP_MS,
 		type DuckPose,
 		type DuckWardrobe,
-		type FallbackReason
+		type FallbackReason,
+		accessoriesFor
 	} from '$lib/figures';
 	import type { DuckScene, DuckFailure, DuckZone } from '$lib/figures/duck-scene';
 	import { isOneShot, POSE_FRAMES } from './triggers';
@@ -199,6 +200,7 @@
 	data-figure={figure}
 	data-mode={ready ? '3d' : '2d'}
 	data-pose={shown}
+	data-hipster={accessoriesFor(wardrobe).beanie || undefined}
 	data-phase={failure?.phase}
 	data-reason={failure?.reason ?? policy ?? (!granted ? 'slot' : undefined)}
 	aria-hidden="true"
@@ -206,7 +208,9 @@
 	<div class="air" bind:this={air}>
 		{#key generation}<canvas bind:this={canvas} class:interactive class:pending={!ready}
 			></canvas>{/key}
-		{#if !ready}<div class="still"><Duck2D pose={shown} /></div>{/if}
+		{#if !ready}<div class="still">
+				<Duck2D pose={shown} />
+			</div>{/if}
 	</div>
 	{#if variant === 'stage'}<div class="level">
 			{#each Array.from({ length: cells }) as _, i (i)}<span class:on={i < level}></span>{/each}

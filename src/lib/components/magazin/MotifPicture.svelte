@@ -4,25 +4,35 @@
 	import { MOTIFS, MotifImage, type MotifId } from '$lib/art';
 	import type { ArtImage } from '$lib/content';
 
-	let { art, priority = false }: { art: ArtImage; priority?: boolean } = $props();
+	let {
+		art,
+		priority = false,
+		decorative = false,
+		sizes = '(min-width: 54rem) 22rem, (min-width: 40rem) 46vw, 86vw'
+	}: {
+		art: ArtImage;
+		priority?: boolean;
+		decorative?: boolean;
+		sizes?: string;
+	} = $props();
 	function isMotif(id: string | undefined): id is MotifId {
 		return id !== undefined && Object.hasOwn(MOTIFS, id);
 	}
 </script>
 
-<div class="magazin-motif">
+<div class="magazin-motif" class:monochrome={art.tile === 'essay-lernstand'} data-media="bleed">
 	{#if isMotif(art.tile)}
 		<MotifImage
 			motif={art.tile}
-			alt={art.alt}
+			alt={decorative ? '' : art.alt}
 			position={art.position}
 			{priority}
-			sizes="(min-width: 40rem) 40rem, 100vw"
+			{sizes}
 		/>
 	{:else}
 		<img
 			src={asset(art.src as Asset)}
-			alt={art.alt}
+			alt={decorative ? '' : art.alt}
 			width="800"
 			height="600"
 			loading={priority ? 'eager' : 'lazy'}
@@ -35,7 +45,12 @@
 
 <style>
 	.magazin-motif {
-		aspect-ratio: 4 / 3;
+		position: absolute;
+		inset: 0;
+	}
+
+	.monochrome {
+		filter: grayscale(1);
 	}
 
 	img {

@@ -24,10 +24,16 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { duckClip, type DuckClip, type DuckPose } from './index.js';
-import { createDuckInk, createDuckOutline, setHullNormals } from './duck-halftone-shader.js';
+import {
+	createDuckInk,
+	createDuckOutline,
+	duckOutlineWidth,
+	isMiniDuck,
+	setHullNormals
+} from './duck-halftone-shader.js';
 import {
 	ACCESSORIES,
-	DEFAULT_WARDROBE,
+	accessoriesFor,
 	type DuckAccessory,
 	type DuckWardrobe
 } from './duck-wardrobe.js';
@@ -161,6 +167,8 @@ export async function createDuckScene(options: DuckSceneOptions): Promise<DuckSc
 		renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, pixelRatioCap()));
 		const outline = createDuckOutline(viewport);
 		materials.add(outline);
+		/** Ink hulls of the glasses: dropped at corner size, where they would fill the lenses. */
+		const glassesHulls: SkinnedMesh[] = [];
 		for (const mesh of meshes) {
 			// GLTFLoader names the primitive after its glTF mesh, the accessory group after its node.
 			const owner =
@@ -183,12 +191,14 @@ export async function createDuckScene(options: DuckSceneOptions): Promise<DuckSc
 			hull.position.set(0, 0, 0);
 			hull.quaternion.identity();
 			hull.scale.setScalar(1);
+			if (owner === ACCESSORIES.glasses) glassesHulls.push(hull);
 		}
 		let wake = () => {};
 		function setWardrobe(value: Partial<DuckWardrobe>) {
-			const box = bodyBounds.clone();
+			const box = bodyBounds.clone(),
+				shown = accessoriesFor(value);
 			for (const { key, node, bounds } of accessories) {
-				node.visible = value[key] ?? DEFAULT_WARDROBE[key];
+				node.visible = shown[key];
 				if (node.visible) box.union(bounds);
 			}
 			const size = box.getSize(new Vector3());
@@ -380,6 +390,11 @@ export async function createDuckScene(options: DuckSceneOptions): Promise<DuckSc
 			if (viewport.x !== w || viewport.y !== h) {
 				viewport.set(w, h);
 				renderer.setSize(w, h, false);
+				// The ink line follows the canvas size, so the 72 px corner duck stays as crisp as
+				// the fullscreen one instead of growing a fixed contour over its small shapes.
+				outline.uniforms.outlineWidth.value = duckOutlineWidth(w, h);
+				const mini = isMiniDuck(w, h);
+				for (const hull of glassesHulls) hull.visible = !mini;
 			}
 			camera.aspect = w / h;
 			const distance = duckCameraDistance(
