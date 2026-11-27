@@ -1,0 +1,44 @@
+{
+	"name": "ui",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:glyphs": "node scripts/check-glyphs.mjs",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "npm run format:check",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"check:modules": "node scripts/check-modules.mjs"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-static": "^3.0.11",
+		"@sveltejs/kit": "^2.70.4",
+		"@sveltejs/vite-plugin-svelte": "^7.3.1",
+		"@types/katex": "^0.16.8",
+		"@types/node": "^26.6.6",
+		"@types/three": "^0.187.0",
+		"csstype": "^3.2.3",
+		"prettier": "^3.10.1",
+		"prettier-plugin-svelte": "^4.1.1",
+		"svelte": "^5.57.3",
+		"svelte-check": "^4.7.8",
+		"typescript": "^6.0.3",
+		"vite": "^8.3.8"
+	},
+	"dependencies": {
+		"@internationalized/date": "^3.12.4",
+		"bits-ui": "^2.22.0",
+		"gsap": "^3.15.1",
+		"katex": "^0.19.1",
+		"three": "^0.187.0"
+	},
+	"engines": {
+		"node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+	}
+}

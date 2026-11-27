@@ -1,0 +1,50 @@
+/*
+ * Self-hosted fonts (ui/DESIGN.md §6). No request leaves the app for fonts.
+ * Files and their build: static/fonts/README.md, scripts/fonts/build-fonts.sh.
+ * Ranges mirror the subsets, so the browser only fetches a file it can use.
+ */
+
+/* Archivo, variable: weight 300–700, width 85–125 %. German needs only the latin file.
+   Each range is the file's exact cmap (printed by build-fonts.sh), so Archivo never claims a
+   sign it lacks: no ↗ (U+2197), no ↖ ↘ ↙, no Greek. Signs are icons (§7), Greek stands in
+   formulas and code only (§6.5). */
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 300 700;
+	font-stretch: 85% 125%;
+	font-display: swap;
+	src: url('/fonts/archivo-latin.woff2') format('woff2');
+	unicode-range:
+		U+000D, U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+2009, U+2010-2011, U+2013-2015, U+2017-201A, U+201C-201E, U+2020-2022, U+2026, U+2030,
+		U+2032-2033, U+2039-203A, U+203E, U+2044, U+2052, U+2070, U+2074-2079, U+207F-2089, U+2099,
+		U+20AC, U+2122, U+2190-2195, U+2202, U+2205-2206, U+220F, U+2211-2212, U+2215, U+2219-221A,
+		U+221E-221F, U+2229, U+222B, U+2248, U+2260-2261, U+2264-2265, U+FEFF;
+}
+
+/* latin-ext: its cmap without U+2020 (†), which the latin file already has. */
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 300 700;
+	font-stretch: 85% 125%;
+	font-display: swap;
+	src: url('/fonts/archivo-latin-ext.woff2') format('woff2');
+	unicode-range:
+		U+0100-017F, U+018F, U+0192, U+019D, U+01A0-01A1, U+01AF-01B0, U+01C4-01DC, U+01E6-01E7,
+		U+01EA-01EB, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+0272, U+02B9-02BA, U+02C7,
+		U+02C9, U+02DD, U+1E24-1E25, U+1E62-1E63, U+1E6C-1E6D, U+1E80-1E85, U+1E9E, U+1EF2-1EF9, U+20A1,
+		U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AD, U+20B1-20B2, U+20B5, U+20B9-20BA, U+20BC-20BD,
+		U+2113;
+}
+
+/* JetBrains Mono, variable: weight 400–700. Latin, Latin-Ext, Greek, maths, arrows, box and
+   block shapes. The code voice: it loads only when a screen shows [data-code] (DESIGN.md §6.2). */
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 400 700;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono-var.woff2') format('woff2');
+}

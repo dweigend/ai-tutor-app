@@ -1,0 +1,306 @@
+/* Base styles and shared primitives. Route-specific layout lives in the route files. */
+
+html {
+	/* Exact glyph outlines and advances instead of hinted ones: Archivo keeps its spacing (K8). */
+	text-rendering: geometricPrecision;
+	background: var(--surface);
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	scrollbar-color: var(--text) var(--surface);
+	caret-color: var(--grip);
+}
+
+body {
+	min-block-size: 100dvh;
+	background: var(--surface);
+	color: var(--text);
+	font: var(--font-weight-regular) var(--type-body) / var(--line-body) var(--font-ui);
+	font-kerning: normal;
+	/* One voice carries the numbers too: tabular figures keep readouts and columns still. */
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: break-word;
+	-webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+	font-weight: var(--font-weight-title);
+	line-height: var(--line-snug);
+	letter-spacing: var(--letter-tight);
+	text-wrap: balance;
+}
+
+h1 {
+	font-size: var(--type-lead);
+}
+
+h2 {
+	font-size: var(--type-lead);
+}
+
+h3 {
+	font-size: var(--type-body);
+}
+
+p {
+	text-wrap: pretty;
+}
+
+a {
+	color: inherit;
+	text-decoration-thickness: var(--hairline-width);
+	text-underline-offset: 0.2em;
+}
+
+a,
+button,
+label {
+	touch-action: manipulation;
+}
+
+:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: 3px;
+}
+
+::selection {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+/*
+ * Type roles (DESIGN.md §6.1): seven sizes of the one voice. A role sets size, line, weight and
+ * case together, so a text never mixes two of them.
+ */
+
+.type-label,
+.label {
+	font-size: var(--type-label);
+	font-weight: var(--font-weight-strong);
+	line-height: var(--line-label);
+	letter-spacing: var(--letter-label);
+	text-transform: uppercase;
+}
+
+/* Times, counts, units, the quiet second line of a row. */
+.type-meta,
+.data {
+	font-size: var(--type-meta);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-meta);
+}
+
+.type-body {
+	font-size: var(--type-body);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-body);
+}
+
+.type-title {
+	font-size: var(--type-title);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-title);
+}
+
+.type-question {
+	font-size: var(--type-question);
+	font-weight: var(--font-weight-strong);
+	line-height: var(--line-question);
+	letter-spacing: var(--letter-question);
+	text-wrap: balance;
+}
+
+.type-head {
+	font-size: var(--type-head);
+	font-weight: var(--font-weight-light);
+	line-height: var(--line-head);
+	text-transform: uppercase;
+	text-wrap: balance;
+}
+
+.type-display,
+.display {
+	font-size: var(--type-display);
+	font-weight: var(--font-weight-light);
+	line-height: var(--line-display);
+	letter-spacing: var(--letter-display);
+}
+
+.muted {
+	color: var(--text-muted);
+}
+
+.nowrap {
+	white-space: nowrap;
+}
+
+.visually-hidden:not(:focus):not(:active) {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Surfaces (DESIGN.md §5): an element with data-surface paints its own ground and text. */
+[data-surface] {
+	background-color: var(--surface);
+	color: var(--text);
+}
+
+/* Page column */
+
+.container {
+	inline-size: min(100%, var(--content-width));
+	margin-inline: auto;
+	padding-inline: var(--gutter);
+}
+
+.skip-link {
+	position: fixed;
+	inset: var(--step-2) auto auto var(--step-2);
+	z-index: 100;
+	padding: var(--step-2) var(--step-4);
+	background: var(--action);
+	color: var(--action-text);
+	font-weight: 600;
+}
+
+.skip-link:not(:focus) {
+	clip-path: inset(50%);
+}
+
+/*
+ * Buttons: a pill, no shadow (DESIGN.md §3: a control is round). They read surface roles, so
+ * they work on every data-surface (§5). Pressing inverts at once (§2.5); hover only where it
+ * exists.
+ */
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--step-2);
+	min-block-size: 2.75rem;
+	padding: 0 var(--step-5);
+	border: var(--hairline-width) solid var(--hairline);
+	border-radius: var(--radius-pill);
+	background: var(--action);
+	color: var(--action-text);
+	font-weight: 500;
+	letter-spacing: -0.005em;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.button:active {
+	background: var(--action-text);
+	color: var(--action);
+}
+
+.button-quiet {
+	background: transparent;
+	color: var(--text);
+}
+
+.button-quiet:active {
+	background: var(--text);
+	color: var(--surface);
+}
+
+@media (hover: hover) {
+	.button:hover {
+		background: var(--action-text);
+		color: var(--action);
+	}
+
+	.button-quiet:hover {
+		background: var(--text);
+		color: var(--surface);
+	}
+}
+
+/* Tabs (bits-ui): a hairline row with an underline marker */
+
+.tabs-list {
+	display: flex;
+	max-inline-size: 100%;
+	overflow-x: auto;
+	border-block-end: var(--hairline-width) solid var(--hairline);
+}
+
+.tabs-trigger {
+	flex: none;
+	min-block-size: 2.75rem;
+	padding: 0 var(--step-4);
+	border: 0;
+	background: transparent;
+	color: var(--text-muted);
+	/* Tabs speak the label voice (DESIGN.md §6). */
+	font-size: var(--type-label);
+	font-weight: 500;
+	line-height: 1;
+	letter-spacing: var(--letter-label);
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.tabs-trigger:hover {
+	color: var(--text);
+}
+
+.tabs-trigger:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -3px;
+}
+
+.tabs-trigger[data-state='active'] {
+	background: var(--text);
+	color: var(--surface);
+}
+
+/* Dialog (bits-ui) */
+
+.dialog-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	background: rgb(10 10 10 / 60%);
+	animation: fade-in var(--change-time) var(--change-easing);
+}
+
+.dialog-content {
+	position: fixed;
+	inset: 50% auto auto 50%;
+	z-index: 51;
+	display: grid;
+	gap: var(--step-4);
+	inline-size: min(26rem, calc(100% - 2 * var(--gutter)));
+	max-block-size: calc(100% - 2 * var(--gutter));
+	padding: var(--step-6);
+	overflow: auto;
+	overscroll-behavior: contain;
+	border: var(--hairline-width) solid var(--hairline);
+	background: var(--surface);
+	transform: translate(-50%, -50%);
+	animation: rise-in 220ms var(--change-easing);
+}
+
+.dialog-content h2 {
+	font-size: var(--type-lead);
+}
+
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translate(-50%, calc(-50% + 0.75rem));
+	}
+}

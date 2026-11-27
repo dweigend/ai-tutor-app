@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+	<!-- The device itself: the 2x2 grid sign in Signal yellow on ink, square (DESIGN.md §3, §5). -->
+	<rect width="180" height="180" fill="#0a0a0a"/>
+	<g fill="#f4b810">
+		<rect x="36" y="36" width="48" height="48"/>
+		<rect x="96" y="36" width="48" height="48"/>
+		<rect x="36" y="96" width="48" height="48"/>
+		<rect x="96" y="96" width="48" height="48"/>
+	</g>
+</svg>

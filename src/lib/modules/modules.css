@@ -1,0 +1,1577 @@
+/*
+ * Shared skin of src/lib/modules (ui/DESIGN.md §2, §3, §6, §7). Reads semantic roles only, so
+ * every part works on all six surfaces. Imported once in routes/+layout.svelte.
+ *
+ */
+
+/* A control: square, at least --hit on both axes, no rounding, no shadow. */
+.m-hit {
+	position: relative;
+	display: inline-grid;
+	place-items: center;
+	min-inline-size: var(--hit);
+	min-block-size: var(--hit);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-decoration: none;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.m-hit:disabled,
+.m-hit[aria-disabled='true'] {
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
+/*
+ * Focus: 2px --focus outside, 2px --focus-halo inside, both within the target, so a ring in the
+ * 44px top bar is never cut by the screen edge.
+ */
+.m-hit:focus-visible {
+	outline: none;
+}
+
+.m-hit:focus-visible::after {
+	position: absolute;
+	inset: 0;
+	border: var(--focus-width) solid var(--focus);
+	outline: var(--focus-width) solid var(--focus-halo);
+	outline-offset: calc(-2 * var(--focus-width));
+	border-radius: inherit;
+	content: '';
+	pointer-events: none;
+}
+
+/* A key: pressed means inverted at once, back within --tap-return. Never scaled. */
+.m-key {
+	background: var(--action);
+	color: var(--action-text);
+	transition:
+		background-color var(--tap-return) linear,
+		color var(--tap-return) linear;
+}
+
+.m-key:active {
+	background: var(--action-text);
+	color: var(--action);
+	transition: none;
+}
+
+/* Bar, label, legend: Archivo 600, 12px, capitals, tracked (DESIGN.md §6). */
+.m-label {
+	font-family: var(--font-ui);
+	font-size: var(--type-label);
+	font-weight: var(--font-weight-strong);
+	line-height: 1;
+	letter-spacing: var(--letter-label);
+	text-transform: uppercase;
+}
+
+/*
+ * Round icon button (DESIGN.md §3): a 44px circle on --card, so it reads as raised and
+ * pressable on every surface. Pressed means inverted at once, back within --tap-return. The
+ * focus ring follows the circle.
+ */
+.m-icon-button {
+	display: inline-grid;
+	flex: none;
+	place-items: center;
+	inline-size: var(--icon-button-size);
+	block-size: var(--icon-button-size);
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var(--card);
+	color: var(--text);
+	text-decoration: none;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition:
+		background-color var(--tap-return) linear,
+		color var(--tap-return) linear;
+}
+
+.m-icon-button:active,
+.m-icon-button[aria-pressed='true'] {
+	background: var(--text);
+	color: var(--surface);
+	transition: none;
+}
+
+.m-icon-button:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: var(--focus-width);
+}
+
+/* Number and unit inside a capital label stay small: `PODCAST · 20 min` (DESIGN.md §6.5). */
+.m-unit {
+	text-transform: none;
+}
+
+/* Short key word: 17px, weight 500. */
+.m-keyword {
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+	line-height: 1;
+}
+
+/*
+ * Surface wipe between routes (DESIGN.md §4.5): no cross-fade. The old page stands still, the new
+ * one is revealed with a hard clip edge driven by the snap spring (surface-shell/blende.ts).
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+
+/* ============================================================================================
+ * P3 Raster (DESIGN.md §11): one skin for every flush cell. The 1px joint is the --hairline
+ * showing through a 1px gap; only an instrument carries the outer frame (§2.2).
+ * ========================================================================================== */
+.raster {
+	display: grid;
+	gap: var(--hairline-width);
+	margin: 0;
+	padding: 0;
+	border: var(--hairline-width) solid var(--hairline);
+	background: var(--hairline);
+	list-style: none;
+}
+
+.raster[data-frame='none'] {
+	border: 0;
+}
+
+.raster-cell {
+	position: relative;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-areas: 'legend body sign';
+	align-items: center;
+	gap: var(--step-2);
+	min-inline-size: 0;
+	min-block-size: var(--cell);
+	margin: 0;
+	padding: var(--step-2) var(--step-3);
+	border: 0;
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+	text-align: start;
+	text-decoration: none;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition:
+		background-color var(--tap-return) linear,
+		color var(--tap-return) linear;
+}
+
+/* Chosen: --mark plus a check (§2.4). Pressed: inverted at once, back within --tap-return (§2.5). */
+.raster-cell[data-selected] {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+.raster-cell:active:not(:disabled) {
+	background: var(--action);
+	color: var(--action-text);
+	transition: none;
+}
+
+.raster-cell:disabled {
+	cursor: not-allowed;
+}
+
+.raster-cell:focus-visible {
+	outline: none;
+}
+
+.raster-cell:focus-visible::after {
+	position: absolute;
+	inset: 0;
+	border: var(--focus-width) solid var(--focus);
+	outline: var(--focus-width) solid var(--focus-halo);
+	outline-offset: calc(-2 * var(--focus-width));
+	border-radius: inherit;
+	content: '';
+	pointer-events: none;
+}
+
+.raster-legend {
+	grid-area: legend;
+	align-self: start;
+}
+
+.raster-body {
+	grid-area: body;
+	min-inline-size: 0;
+}
+
+.raster-sign {
+	grid-area: sign;
+	align-self: start;
+	min-inline-size: 1ch;
+	font-family: var(--font-mono);
+	line-height: var(--line-snug);
+}
+
+.m-selection-sign {
+	display: inline-grid;
+	flex: none;
+	place-items: center;
+	inline-size: var(--sign-size);
+	block-size: var(--sign-size);
+	border-radius: 50%;
+	background: var(--mark-text);
+	color: var(--mark);
+}
+
+.choice-grid {
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-s);
+	border: 0;
+	background: transparent;
+}
+
+.choice-grid .raster-cell {
+	min-block-size: var(--control);
+	padding: var(--space-s) var(--space-m);
+	border-radius: var(--radius-option);
+	background: var(--card);
+	font-family: var(--font-ui);
+	font-size: var(--type-body);
+	line-height: var(--line-title);
+	overflow-wrap: anywhere;
+}
+
+.choice-grid[data-voice='value'] .raster-cell {
+	font-variant-numeric: tabular-nums;
+}
+
+.choice-grid[data-voice='sentence'] .raster-cell {
+	font-weight: var(--font-weight-regular);
+}
+
+.choice-grid .raster-cell[data-selected] {
+	background: var(--mark);
+}
+
+.choice-grid .raster-cell:active:not(:disabled) {
+	background: var(--action);
+	color: var(--action-text);
+}
+
+.choice-grid .raster-legend {
+	display: grid;
+	place-items: center;
+	inline-size: var(--sign-size);
+	block-size: var(--sign-size);
+	border: var(--hairline-width) solid currentColor;
+	border-radius: 50%;
+	font-variant-numeric: tabular-nums;
+}
+
+.choice-grid .raster-legend,
+.choice-grid .raster-sign {
+	align-self: center;
+	line-height: 1;
+}
+
+/* strip: a 44px row that scrolls sideways under the finger; no counts, no frame (konzept M1). */
+.raster[data-layout='strip'] {
+	display: flex;
+	gap: 0;
+	block-size: var(--bar);
+	border: 0;
+	background: transparent;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+}
+
+.raster[data-layout='strip']::-webkit-scrollbar {
+	display: none;
+}
+
+.raster[data-layout='strip'] .raster-cell {
+	flex: none;
+	grid-template-columns: auto auto;
+	grid-template-areas: 'sign body';
+	gap: var(--step-1);
+	min-block-size: var(--bar);
+	padding-block: 0;
+	background: transparent;
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 500;
+	line-height: 1;
+	letter-spacing: var(--letter-label);
+	text-transform: uppercase;
+	/* Choosing in the strip is a hard switch (§4.5): the old entry never fades out beside the new. */
+	transition: none;
+}
+
+.raster[data-layout='strip'] .raster-cell[data-selected] {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+.raster[data-layout='strip'] .raster-sign {
+	align-self: center;
+	min-inline-size: 0;
+}
+
+/* SlabList: 64px links, title and one reading. */
+.raster-item {
+	display: block;
+	block-size: var(--cell);
+	background: var(--surface);
+}
+
+/* The reading ends on the gutter like the title starts on it (K7): no column gap for an empty
+ * sign; a completed row's check keeps its distance through its own margin. */
+.slab {
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas: 'body sign';
+	gap: 0;
+	block-size: var(--cell);
+	padding-inline: var(--gutter);
+	background: var(--surface);
+}
+
+.slab .raster-body {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--step-3);
+}
+
+.slab .raster-sign {
+	align-self: center;
+	margin-inline-start: var(--step-3);
+}
+
+.slab .raster-sign:empty {
+	display: none;
+}
+
+.slab[data-state='next'] {
+	background: var(--action);
+	color: var(--action-text);
+}
+
+/* Titles stand in full, never clamped (art direction K2); budgets keep them short. */
+.slab-title {
+	font-family: var(--font-sans);
+	font-size: var(--type-body);
+	font-weight: var(--font-weight-title);
+	line-height: var(--line-snug);
+}
+
+.slab-meta {
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* LinePick: code lines of at least a half cell, wrapped with a hanging indent (konzept M9). */
+.raster[data-layout='lines'] {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.raster .line-pick-line {
+	grid-template-columns: 1ch 2ch minmax(0, 1fr);
+	grid-template-areas: none;
+	align-items: start;
+	gap: var(--step-1);
+	min-block-size: var(--cell-half);
+	padding: var(--step-1) var(--step-2);
+	line-height: var(--line-snug);
+}
+
+.line-pick-sign {
+	font-family: var(--font-mono);
+}
+
+.line-pick-number {
+	align-self: center;
+	margin-inline-end: var(--step-1);
+	color: var(--text-muted);
+	font-size: var(--type-label);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+[data-selected] > .line-pick-number {
+	color: inherit;
+}
+
+.line-pick-code {
+	padding-inline-start: calc(var(--indent, 0ch) + 2ch);
+	font: inherit;
+	text-indent: -2ch;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+/* DigitPad = Readout + Raster keys (konzept M6). Keys are cells; they shrink to the bar height
+ * when the instrument is short, never to a size in between (DESIGN.md §2.1). */
+.digit-pad {
+	display: flex;
+	flex-direction: column;
+	gap: var(--step-2);
+}
+
+.digit-pad-readout {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--step-3);
+	min-block-size: var(--cell);
+	border-block-end: var(--hairline-width) solid var(--hairline);
+}
+
+.digit-pad-input {
+	position: absolute;
+	inset: 0;
+	inline-size: 100%;
+	border: 0;
+	background: transparent;
+	color: transparent;
+	caret-color: transparent;
+	font: inherit;
+	cursor: text;
+}
+
+.digit-pad-input:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: calc(-1 * var(--focus-width));
+}
+
+.digit-pad-back {
+	position: relative;
+	padding-inline: var(--step-2);
+}
+
+.raster[data-layout='keys'] {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-auto-rows: var(--cell);
+}
+
+.raster[data-layout='keys'] .raster-cell {
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-areas: 'body';
+	justify-items: center;
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+}
+
+.raster[data-layout='keys'] .raster-sign {
+	display: none;
+}
+
+.raster[data-layout='keys'] span.raster-cell {
+	cursor: default;
+}
+
+@media (max-height: 46rem) {
+	.raster[data-layout='keys'] {
+		grid-auto-rows: var(--bar);
+	}
+
+	.raster[data-layout='keys'] .raster-cell {
+		min-block-size: var(--bar);
+		padding-block: 0;
+	}
+}
+
+/* ============================================================================================
+ * P6 Readout: everything the device shows. Readouts tick: no transition anywhere below (§4.1).
+ * ========================================================================================== */
+.readout-value {
+	font-family: var(--font-mono);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.readout-value[data-size='display'] {
+	font-size: var(--type-display);
+	line-height: 1;
+	letter-spacing: var(--letter-tight);
+}
+
+.readout-value[data-size='body'] {
+	font-size: var(--type-body);
+	line-height: var(--line-snug);
+}
+
+.readout-unit {
+	margin-inline-start: var(--step-2);
+	font-size: var(--type-body);
+	letter-spacing: 0;
+}
+
+.readout-placeholder {
+	color: var(--text-muted);
+}
+
+.readout-facts {
+	display: grid;
+	grid-auto-columns: minmax(max-content, 1fr);
+	grid-auto-flow: column;
+	margin: 0;
+}
+
+.readout-fact {
+	display: grid;
+	align-content: start;
+	min-inline-size: 0;
+	padding-inline: var(--step-2);
+}
+
+.readout-fact:first-child {
+	padding-inline-start: 0;
+}
+
+.readout-fact + .readout-fact {
+	border-inline-start: var(--hairline-width) solid var(--hairline);
+}
+
+.readout-fact-label,
+.readout-pair-label {
+	margin: 0;
+	overflow: hidden;
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 400;
+	line-height: var(--line-body);
+	white-space: nowrap;
+}
+
+.readout-fact-value,
+.readout-pair-value {
+	margin: 0;
+	overflow: hidden;
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	line-height: var(--line-snug);
+	white-space: nowrap;
+}
+
+.readout-pair {
+	display: grid;
+	grid-template-columns: auto auto minmax(0, 1fr);
+	margin: 0;
+}
+
+/* Each row spans the three columns (subgrid), so the joint between A and B is one line. */
+.readout-pair-row {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
+	align-items: baseline;
+	column-gap: var(--step-4);
+	padding-block: var(--step-1);
+}
+
+.readout-pair-row + .readout-pair-row {
+	border-block-start: var(--hairline-width) solid var(--hairline);
+}
+
+.readout-pair-row > * {
+	margin: 0;
+}
+
+.readout-pair-label {
+	font-size: var(--type-body);
+}
+
+.readout-code-pair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.readout-code {
+	display: grid;
+	gap: var(--step-1);
+	min-inline-size: 0;
+	margin: 0;
+	padding-inline-end: var(--step-2);
+}
+
+.readout-code + .readout-code {
+	padding-inline: var(--step-2) 0;
+	border-inline-start: var(--hairline-width) solid var(--hairline);
+}
+
+.readout-code-text {
+	margin: 0;
+	overflow: hidden;
+	white-space: pre;
+}
+
+.readout-meter {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: var(--space-s);
+	min-inline-size: 0;
+	min-block-size: var(--hit);
+	font-size: var(--type-meta);
+	font-variant-numeric: tabular-nums;
+}
+
+.readout-meter-segment {
+	flex: none;
+	inline-size: var(--step-dot-size);
+	block-size: var(--step-dot-size);
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+}
+
+.readout-meter-segment[data-state='done'] {
+	background: currentColor;
+}
+
+.readout-meter-segment[data-state='current'] {
+	background: var(--mark);
+	box-shadow: inset 0 0 0 1px var(--surface);
+}
+
+.readout-verdict {
+	display: grid;
+	align-content: start;
+	gap: var(--step-3);
+	outline: none;
+}
+
+.readout-verdict-rows {
+	display: grid;
+	gap: var(--hairline-width);
+	margin: 0;
+	border: var(--hairline-width) solid var(--hairline);
+	background: var(--hairline);
+}
+
+.readout-verdict-row {
+	display: grid;
+	grid-template-columns: 8ch minmax(0, 1fr);
+	align-items: center;
+	min-block-size: var(--cell);
+	padding: var(--step-2) var(--step-3);
+	background: var(--surface);
+}
+
+.readout-verdict-row[data-selected] {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+.readout-verdict-value {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--step-2) var(--step-3);
+	min-inline-size: 0;
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+	line-height: var(--line-snug);
+}
+
+/* A sentence option is read, not measured: Archivo 400, 17px (correction K6). */
+.readout-verdict-answer[data-voice='sentence'] {
+	font-family: var(--font-sans);
+	font-weight: 400;
+}
+
+.readout-verdict-confidence {
+	font-size: var(--type-label);
+	font-weight: 400;
+}
+
+.readout-verdict-sign {
+	margin-inline-start: auto;
+}
+
+/* A deviation: the crimson bar with the words, white on crimson (6.52:1, DESIGN.md §5.4). */
+.readout-verdict-deviation {
+	display: inline-grid;
+	place-items: center;
+	min-block-size: var(--bar);
+	padding-inline: var(--step-3);
+	background: var(--surface);
+	color: var(--text);
+}
+
+.readout-verdict-because {
+	font-family: var(--font-sans);
+	font-size: var(--type-body);
+	line-height: var(--line-body);
+}
+
+.readout-matrix {
+	display: grid;
+	grid-template-columns: repeat(var(--matrix-columns), var(--dot));
+	grid-auto-rows: var(--dot);
+	gap: var(--dot-gap);
+}
+
+.readout-matrix-cell {
+	display: grid;
+	place-items: center;
+}
+
+.readout-matrix-cell::before {
+	inline-size: var(--dot-off);
+	block-size: var(--dot-off);
+	border-radius: 50%;
+	background: var(--text-muted);
+	content: '';
+}
+
+.readout-matrix-cell[data-on='true']::before {
+	inline-size: var(--dot);
+	block-size: var(--dot);
+	background: var(--mark);
+}
+
+/* A sign over the matrix (the pause ‖) is the text colour, so it never reads as played. */
+.readout-matrix-cell[data-on='sign']::before {
+	inline-size: var(--dot);
+	block-size: var(--dot);
+	background: var(--text);
+}
+
+/* ============================================================================================
+ * P8 Fold: `LABEL [05] +`, 44px, opens in place; + and − switch hard (DESIGN.md §7).
+ * ========================================================================================== */
+.fold[data-flat] {
+	display: contents;
+}
+
+.fold-trigger {
+	display: flex;
+	justify-content: space-between;
+	inline-size: 100%;
+	block-size: var(--bar);
+	padding-inline: var(--gutter);
+}
+
+.fold-label {
+	display: flex;
+	gap: var(--step-2);
+}
+
+.fold-count {
+	font-variant-numeric: tabular-nums;
+}
+
+.fold-sign {
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+	line-height: 1;
+}
+
+.fold-sources {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.fold-source {
+	display: grid;
+	grid-template-columns: 5ch minmax(0, 1fr);
+	align-items: center;
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	line-height: var(--line-body);
+}
+
+.fold-source-index {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.fold-source-link {
+	display: inline-flex;
+	align-items: center;
+	min-block-size: var(--hit);
+	color: inherit;
+	text-decoration: none;
+}
+
+.fold-source-link:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+}
+
+/* ============================================================================================
+ * P4 Fader: one axis, one grip (DESIGN.md §2.3). The grip springs (motion.ts), never tweens.
+ * ========================================================================================== */
+.fader {
+	position: relative;
+	display: block;
+	block-size: var(--hit);
+	touch-action: none;
+	cursor: pointer;
+}
+
+.fader[data-disabled] {
+	cursor: not-allowed;
+}
+
+.fader-axis {
+	position: absolute;
+	inset: 0;
+}
+
+.fader-line {
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline: var(--fader-pad, 0%);
+	block-size: var(--hairline-width);
+	background: var(--hairline);
+}
+
+.fader-tick {
+	position: absolute;
+	inset-block-start: 50%;
+	inline-size: var(--hairline-width);
+	block-size: var(--step-2);
+	background: var(--hairline);
+	translate: -50% 0;
+}
+
+.fader-tick[data-major] {
+	block-size: var(--step-4);
+	translate: -50% -50%;
+}
+
+.fader-hit {
+	display: grid;
+	place-items: center;
+	inline-size: var(--hit);
+	block-size: var(--hit);
+	inset-block-start: 0;
+	outline: none;
+	cursor: grab;
+}
+
+.fader-hit:active {
+	cursor: grabbing;
+}
+
+.fader-grip {
+	inline-size: var(--grip-size);
+	block-size: var(--grip-size);
+	border: var(--hairline-width) solid var(--grip-border);
+	border-radius: 50%;
+	background: var(--grip);
+}
+
+.fader-hit:focus-visible .fader-grip {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: var(--focus-width);
+}
+
+/* SpectrumSlider: the flood is the reading. It lies behind the stage's text (z-index −1 inside
+ * the stage's stacking context) and spans the whole stage height, from the middle to the grip. */
+.spectrum {
+	display: grid;
+	min-block-size: 9rem;
+	grid-template-rows: minmax(0, 1fr) auto auto;
+	block-size: 100%;
+	padding-block-end: var(--step-2);
+}
+
+.spectrum-flood {
+	position: absolute;
+	inset-block: 0;
+	z-index: -1;
+	background: var(--mark);
+}
+
+.spectrum-word {
+	align-self: center;
+	margin: 0;
+	font-family: var(--font-sans);
+	font-size: var(--type-display);
+	font-weight: var(--font-weight-display);
+	line-height: 1;
+	letter-spacing: var(--letter-display);
+	text-align: center;
+}
+
+/* The word stands in the middle of the chosen half; UNSICHER stays in the middle (K2). */
+.spectrum[data-side='yes'] .spectrum-word {
+	margin-inline-start: 50%;
+}
+
+.spectrum[data-side='no'] .spectrum-word {
+	margin-inline-end: 50%;
+}
+
+.spectrum-ends {
+	display: flex;
+	justify-content: space-between;
+	margin: 0;
+	padding-inline: var(--gutter);
+}
+
+.confidence {
+	display: grid;
+	gap: var(--space-s);
+}
+
+.confidence-label {
+	margin: 0;
+	font-weight: var(--font-weight-strong);
+	line-height: var(--line-title);
+}
+
+.confidence-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-s);
+}
+
+.confidence-rating {
+	display: flex;
+	gap: var(--space-s);
+	border-radius: var(--radius-pill);
+}
+
+.confidence-rating:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: var(--focus-width);
+}
+
+.confidence-segment {
+	display: grid;
+	place-items: center;
+	inline-size: var(--hit);
+	block-size: var(--hit);
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.confidence-segment[data-filled] {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+.confidence-none {
+	grid-auto-flow: column;
+	gap: var(--space-s);
+	padding-inline: var(--space-m);
+	border-radius: var(--radius-pill);
+	background: var(--card);
+	font-size: var(--type-meta);
+}
+
+.confidence-none[aria-pressed='true'] {
+	background: var(--mark);
+	color: var(--mark-text);
+}
+
+.confidence[data-disabled] .confidence-segment {
+	cursor: not-allowed;
+}
+
+/* ScaleFader: − readout + over a ruler with a fixed --mark. */
+.scale-fader {
+	display: grid;
+	gap: var(--step-2);
+}
+
+.scale-fader-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--step-3);
+}
+
+.scale-fader-mark {
+	position: absolute;
+	inset-block: var(--step-2);
+	inline-size: var(--step-2);
+	border: var(--hairline-width) solid var(--mark-border);
+	background: var(--mark);
+	translate: -50% 0;
+}
+
+/* ============================================================================================
+ * P2 InteractionStage: reading rail, in-flow content and one anchored primary action.
+ * ========================================================================================== */
+.stage {
+	position: relative;
+	z-index: 0;
+	display: grid;
+	grid-template-areas: 'meter' 'head' 'more' 'instrument' 'aside' 'space' 'action';
+	grid-template-rows: auto auto auto minmax(0, auto) auto minmax(0, 1fr) var(--action-zone);
+	grid-template-columns: minmax(0, 1fr);
+	block-size: min(var(--stage-height, 100dvh), 54rem);
+	max-inline-size: calc(var(--exercise-rail) + 2 * var(--gutter));
+	margin-inline: auto;
+	padding-block: env(safe-area-inset-top) env(safe-area-inset-bottom);
+	background: var(--surface);
+	color: var(--text);
+	font-family: var(--font-ui);
+	font-size: var(--type-body);
+	line-height: var(--line-body);
+}
+
+.stage:has(.stage-instrument[data-bleed]) {
+	grid-template-rows: auto auto auto minmax(0, 1fr) auto 0 var(--action-zone);
+}
+
+.stage-meter {
+	display: grid;
+	grid-area: meter;
+	grid-template-columns: var(--icon-button-size) minmax(0, 1fr) var(--icon-button-size);
+	align-items: center;
+	gap: var(--space-s);
+	min-block-size: var(--bar);
+	padding-inline: var(--gutter);
+}
+
+.stage-back:not(:active) {
+	background: var(--grip);
+	color: var(--grip-text);
+}
+
+.stage-head {
+	display: grid;
+	grid-area: head;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-s);
+	padding: var(--space-s) var(--gutter) 0;
+}
+
+.stage-context {
+	margin: 0;
+	color: var(--text-muted);
+	line-height: var(--line-label);
+}
+
+.stage-prompt {
+	margin: 0;
+	font-size: var(--type-question);
+	font-weight: var(--font-weight-strong);
+	line-height: var(--line-question);
+	letter-spacing: var(--letter-question);
+	overflow-wrap: anywhere;
+}
+
+.stage-facts {
+	display: grid;
+	gap: var(--space-s);
+	margin-inline: calc(-1 * var(--gutter));
+	padding: var(--space-s) var(--gutter);
+	background: var(--well);
+}
+
+.stage-facts-context {
+	margin: 0;
+}
+
+.stage-more > .fold-trigger {
+	grid-area: more;
+	border-block-start: var(--hairline-width) solid var(--hairline);
+}
+
+/* Open "Mehr" lies over instrument and aside; closed it takes no room and no taps. */
+.stage-more-content {
+	z-index: 1;
+	grid-row: instrument-start / space-end;
+	grid-column: 1;
+	min-block-size: 0;
+	pointer-events: none;
+}
+
+.stage-more-content[data-state='open'] {
+	display: grid;
+	align-content: start;
+	gap: var(--step-4);
+	padding: var(--step-2) var(--gutter) var(--step-3);
+	overflow: auto;
+	background: var(--surface);
+	pointer-events: auto;
+}
+
+.stage-more-text {
+	margin: 0;
+	max-inline-size: 60ch;
+}
+
+.stage-instrument,
+.stage-reveal {
+	grid-area: instrument;
+	min-block-size: 0;
+	padding: var(--space-s) var(--gutter);
+	overflow: auto;
+}
+
+.stage-instrument[data-bleed] {
+	padding-inline: 0;
+}
+
+.stage-aside {
+	grid-area: aside;
+	padding: var(--space-s) var(--gutter);
+}
+
+.stage-aside[data-active='false'] {
+	visibility: hidden;
+}
+
+.stage-action {
+	position: relative;
+	display: grid;
+	grid-area: action;
+	place-items: center;
+	align-self: center;
+	min-block-size: var(--control);
+	margin-inline: var(--gutter);
+	border: 0;
+	border-radius: var(--radius-pill);
+	font-family: var(--font-ui);
+	cursor: pointer;
+}
+
+.stage-action:disabled {
+	background: var(--well);
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
+.stage[data-state='pending'] .stage-action {
+	cursor: progress;
+}
+
+/*
+ * Escape on a begun answer: the question lies over aside and base on the stage's own surface,
+ * one hairline above it; "Bleiben" is the key, "Verlassen" the quiet word (Root.svelte).
+ */
+.stage-leave {
+	z-index: 2;
+	display: grid;
+	grid-row: aside-start / action-end;
+	grid-column: 1;
+	align-content: end;
+	gap: var(--step-2);
+	padding-block-start: var(--step-3);
+	border-block-start: var(--hairline-width) solid var(--hairline);
+	background: var(--surface);
+}
+
+.stage-leave-ask {
+	margin: 0;
+	padding-inline: var(--gutter);
+	font-family: var(--font-mono);
+	font-size: var(--type-body);
+	font-weight: 500;
+	line-height: var(--line-snug);
+}
+
+.stage-leave-keys {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	block-size: var(--action-zone);
+}
+
+.stage-leave-key {
+	display: grid;
+	place-items: center;
+	inline-size: 100%;
+	block-size: 100%;
+	border: 0;
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+/* ============================================================================================
+ * P7 FigurePlate (DESIGN.md §11, konzept Z2): a plate with a vertical FIG_01 label, a canvas of
+ * stacked SVG layers with DOM text over them, and one Mono caption line. Lines are 1px and never
+ * scale; a share is an area (Quadrat im Quadrat); two accents at most: --mark and --grip.
+ * ========================================================================================== */
+:root {
+	counter-reset: figure-plate;
+}
+
+.figure-plate {
+	display: grid;
+	grid-template-columns: var(--step-5) minmax(0, 1fr);
+	grid-template-areas: 'label canvas' 'label caption';
+	margin: 0;
+	counter-increment: figure-plate;
+}
+
+.figure-plate-label {
+	grid-area: label;
+	align-self: start;
+	justify-self: start;
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 400;
+	line-height: 1;
+	writing-mode: vertical-rl;
+	rotate: 180deg;
+}
+
+.figure-plate-label::before {
+	content: 'FIG_' counter(figure-plate, decimal-leading-zero);
+}
+
+.figure-plate-canvas {
+	position: relative;
+	grid-area: canvas;
+	inline-size: 100%;
+}
+
+.figure-plate-layer {
+	position: absolute;
+	inset: 0;
+	inline-size: 100%;
+	block-size: 100%;
+	overflow: visible;
+}
+
+.figure-plate-dot {
+	fill: var(--text-muted);
+}
+
+.figure-plate-axis,
+.figure-plate-pointer,
+.figure-plate-line {
+	fill: none;
+	stroke: var(--text);
+	stroke-width: var(--hairline-width);
+}
+
+.figure-plate-line[data-accent='grip'] {
+	stroke: var(--grip);
+}
+
+.figure-plate-bar,
+.figure-plate-node,
+.figure-plate-cell,
+.figure-plate-face {
+	fill: none;
+	stroke: var(--text);
+	stroke-width: var(--hairline-width);
+}
+
+.figure-plate-bar[data-emphasis],
+.figure-plate-share {
+	fill: var(--text);
+}
+
+.figure-plate-bar[data-accent='mark'],
+.figure-plate-node[data-accent='mark'],
+.figure-plate-share[data-accent='mark'],
+.figure-plate-face[data-accent='mark'] {
+	fill: var(--mark);
+}
+
+.figure-plate-bar[data-accent='grip'],
+.figure-plate-share[data-accent='grip'] {
+	fill: var(--grip);
+}
+
+/* Callouts: DOM text in the label voice over the canvas, anchored by percent of the viewBox. */
+.figure-plate-callout {
+	position: absolute;
+	display: grid;
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+	line-height: var(--line-body);
+	white-space: nowrap;
+	/*
+	 * The words cut the dot grid away under them and one step beside them (art direction K7), so
+	 * no dot touches or runs through a letter or `n. s.`. The cut stays on the label's side of its
+	 * anchor and never covers a bar, node or pointer.
+	 */
+	padding-inline: var(--step-1);
+	background: var(--surface);
+	pointer-events: none;
+	translate: -50% -100%;
+}
+
+.figure-plate-callout[data-place='below'] {
+	translate: -50% 0;
+}
+
+.figure-plate-callout[data-place='left'] {
+	justify-items: end;
+	translate: -100% -50%;
+}
+
+.figure-plate-callout[data-place='right'] {
+	justify-items: start;
+	translate: 0 -50%;
+}
+
+.figure-plate-callout-line[data-note] {
+	color: var(--text-muted);
+}
+
+.figure-plate-caption {
+	grid-area: caption;
+	margin-block-start: var(--step-2);
+	padding-block-start: var(--step-2);
+	border-block-start: var(--hairline-width) solid var(--hairline);
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 400;
+	line-height: var(--line-body);
+}
+
+/* ============================================================================================
+ * AudioStage recipe (konzept §7.2, art direction §3.5): InteractionStage on ink, the Readout
+ * dot matrix as the Fader's axis, one yellow key. No skin of its own beyond placement.
+ * ========================================================================================== */
+.audio-head {
+	grid-area: head;
+}
+
+/* Two Fold rows share the "Mehr" place: chapters left, sources right, one hairline between. */
+.audio-fold > .fold-trigger {
+	grid-area: more;
+	inline-size: 50%;
+	border-block-start: var(--hairline-width) solid var(--hairline);
+}
+
+.audio-fold-start > .fold-trigger {
+	justify-self: start;
+}
+
+.audio-fold-end > .fold-trigger {
+	justify-self: end;
+	border-inline-start: var(--hairline-width) solid var(--hairline);
+}
+
+/* An open fold lies over the instrument on the stage's own surface; the key stays usable. */
+.audio-fold-content {
+	z-index: 1;
+	grid-row: instrument-start / space-end;
+	grid-column: 1;
+	min-block-size: 0;
+	pointer-events: none;
+}
+
+.audio-fold-content[data-state='open'] {
+	display: grid;
+	align-content: start;
+	padding: var(--step-2) var(--gutter) var(--step-3);
+	overflow: auto;
+	background: var(--surface);
+	pointer-events: auto;
+}
+
+.audio-chapters {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.audio-chapter {
+	display: grid;
+	grid-template-columns: 6ch minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--step-2);
+	inline-size: 100%;
+	min-block-size: var(--bar);
+	padding: 0;
+	border: 0;
+	border-block-end: var(--hairline-width) solid var(--hairline);
+	border-radius: var(--radius);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.audio-chapter:focus-visible {
+	outline: var(--focus-width) solid var(--focus);
+	outline-offset: calc(-1 * var(--focus-width));
+}
+
+.audio-chapter-time,
+.audio-chapter-sign {
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-variant-numeric: tabular-nums;
+}
+
+.audio-chapter-title {
+	font-family: var(--font-sans);
+	font-size: var(--type-body);
+	line-height: var(--line-snug);
+}
+
+/* The instrument: matrix and clock on top, the live transcript fills the rest of the zone. */
+.audio-instrument {
+	display: grid;
+	grid-template-rows: auto auto minmax(0, 1fr);
+	gap: var(--step-2);
+	block-size: 100%;
+	min-block-size: 0;
+}
+
+.audio-scrub-host {
+	display: grid;
+	justify-items: center;
+}
+
+/* The matrix is the axis: 44 × 12 circles of --dot with --dot-gap, the grip rides on it. */
+.audio-scrub.fader {
+	inline-size: calc(44 * var(--dot) + 43 * var(--dot-gap));
+	block-size: calc(12 * var(--dot) + 11 * var(--dot-gap));
+}
+
+.audio-scrub .fader-line {
+	display: none;
+}
+
+.audio-scrub .fader-hit {
+	inset-block-start: calc(50% - var(--hit) / 2);
+}
+
+.audio-clock {
+	margin: 0;
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-variant-numeric: tabular-nums;
+	line-height: var(--line-body);
+}
+
+.audio-transcript {
+	display: grid;
+	align-content: start;
+	gap: var(--step-3);
+	min-block-size: 0;
+	padding-inline-start: var(--step-2);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.audio-transcript-label {
+	margin: 0;
+	padding-block-start: var(--step-2);
+	border-block-start: var(--hairline-width) solid var(--hairline);
+	font-family: var(--font-mono);
+	font-size: var(--type-label);
+	font-weight: 500;
+	letter-spacing: var(--letter-label);
+	text-transform: uppercase;
+}
+
+/* Calm: the spoken paragraph in full text colour with the 2px grip rule, the others muted. */
+.audio-line,
+.audio-ask {
+	position: relative;
+	margin: 0;
+	color: var(--text-muted);
+	font-family: var(--font-sans);
+	font-size: var(--type-body);
+	line-height: var(--line-body);
+}
+
+.audio-line[data-active],
+.audio-ask {
+	color: var(--text);
+}
+
+.audio-line[data-active]::before {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: calc(-1 * var(--step-2));
+	inline-size: var(--edge-width);
+	background: var(--grip);
+	content: '';
+}
+
+/* The one key: Signal yellow with ink (11.04:1), "mine" = the played part (DESIGN.md §5.2). */
+.audio-key {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--step-3);
+	background: var(--mark);
+	color: var(--mark-text);
+	transition:
+		background-color var(--tap-return) linear,
+		color var(--tap-return) linear;
+}
+
+.audio-key:active {
+	background: var(--mark-text);
+	color: var(--mark);
+	transition: none;
+}
+
+.audio-key:focus-visible {
+	outline: var(--focus-width) solid var(--mark-text);
+	outline-offset: calc(-2 * var(--focus-width));
+}
+
+/* ============================================================================================
+ * Code voice (DESIGN.md §6.2). JetBrains Mono stands on visible code and nowhere else: this is
+ * the only place that reads --font-code. It comes last so it wins over the `font: inherit` of a
+ * cell that is also a code line. `small` is for code sheets that must keep their lines on a
+ * phone, `inline` for a run inside a sentence, which keeps the size of its line.
+ * ========================================================================================== */
+code,
+pre,
+kbd,
+samp {
+	font: inherit; /* no browser monospace: the code voice comes from [data-code] alone */
+}
+
+[data-code] {
+	font-family: var(--font-code);
+	font-size: var(--type-code);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-code);
+	font-variant-ligatures: none;
+}
+
+[data-code='small'] {
+	font-size: var(--type-code-small);
+	line-height: var(--line-code-small);
+}
+
+[data-code='inline'] {
+	font-size: inherit;
+	line-height: inherit;
+}

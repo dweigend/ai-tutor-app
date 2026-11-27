@@ -1,0 +1,286 @@
+/*
+ * Design tokens v3 (ui/DESIGN.md, 26.11.2026): one voice, two shapes, three layers of colour.
+ * Surfaces are flat and square, controls are round. Signal colour triad on warm paper and matte
+ * ink, no shadows. Light scheme only. Every contrast ratio follows the WCAG 2.2
+ * relative-luminance formula and is checked by src/lib/styles/tokens-contrast.test.ts.
+ */
+:root {
+	color-scheme: light;
+
+	/* Palette: raw colours. Components read the semantic roles below, never these. */
+	--palette-paper: #f4f1ea; /* warm paper; ink 17.55:1, ink-muted 7.99:1 */
+	--palette-white: #fff; /* pure white; ink 19.80:1, ink-muted 9.01:1 */
+	--palette-stone: #e8e4da; /* the sunk neutral on light surfaces; ink 15.59:1, ink-muted 7.10:1 */
+	--palette-graphite: #262522; /* the raised neutral on dark surfaces; white 15.33:1 */
+	--palette-ink: #0a0a0a; /* matte deep black; white 19.80:1, muted-on-dark 9.35:1 */
+	--palette-ink-muted: #4a4945; /* secondary text on paper, white, stone and yellow only */
+	--palette-muted-on-dark: #b5b2aa; /* secondary text on ink (9.35:1) and graphite (7.24:1) */
+	--palette-signal-orange: #e85d1a; /* ink 5.67:1; white fails (3.49:1), never light text */
+	--palette-signal-yellow: #f4b810; /* ink 11.04:1; white fails (1.79:1), never light text */
+	--palette-signal-crimson: #b81444; /* white 6.52:1; ink fails (3.04:1), never dark text */
+
+	/* Shape (DESIGN.md §3): a surface is square, a control is round. Circles use 50%. */
+	--radius-flat: 0; /* surfaces, zones, list rows, tiles, the formula band */
+	--radius-pill: 999px; /* primary action, one-line options, chips */
+	--radius-option: 28px; /* answer pills that may wrap to several lines */
+
+	/* Measures (DESIGN.md §2): each one stands for itself, none is derived from another. */
+	--bar: 56px; /* the top bar of a screen */
+	--row: 64px; /* a list row */
+	--control: 56px; /* primary action, answer pill, text input */
+	--hit: 44px; /* minimum target, also for smaller visible marks */
+	--action-zone: 80px; /* the lowest zone of a stage belongs to the primary action alone */
+	--gutter: 1.25rem; /* 20px; the one outer edge of a screen (32px from 768px) */
+	--content-width: 72rem;
+	--exercise-rail: 30rem; /* reading width excludes the responsive gutter */
+
+	/* Circles: the round controls and marks. */
+	--icon-button-size: var(--hit); /* 44px round icon button */
+	--arrow-circle-size: 36px; /* the arrow ring at the end of a list row */
+	--sign-size: 28px; /* indicator: the ink circle with the check, the number in a ring */
+	--grip-size: 28px; /* the round handle of a fader; its target is --hit */
+	--step-dot-size: 8px; /* one step of a progress row */
+	--tool-dot: 12px; /* whiteboard tool point, target --hit */
+
+	/* Icons (modules/core/Icon.svelte): 24 grid, 1.5px stroke, round caps and joins. */
+	--icon-size: 24px;
+	--icon-stroke: 1.5px;
+
+	/* Lines: the 1px joint between equal-ranking parts; 2px only for focus and a lifted tile. */
+	--hairline-width: 1px;
+	--focus-width: 2px;
+	--edge-width: 2px;
+
+	/* Dot matrix (player, ReadAloud, duck level). Off is told by size, not by another colour. */
+	--dot: 6px;
+	--dot-gap: 2px;
+	--dot-off: 2px;
+
+	/* Space: exactly three distances. Within a group, between groups, between zones. */
+	--space-s: 0.5rem; /* 8px */
+	--space-m: 1rem; /* 16px */
+	--space-l: 2rem; /* 32px */
+
+	/* Room for the fixed companion button and a gap beside it. */
+	--corner-inset: max(var(--space-m), env(safe-area-inset-right));
+	--corner-clearance: calc(var(--hit) + var(--corner-inset) + var(--space-m));
+
+	/*
+	 * Type (DESIGN.md §6): one voice. Archivo carries the whole interface, numbers included
+	 * (tabular figures). JetBrains Mono stands on visible code only: base.css binds --font-code to
+	 * [data-code] and nothing else may read it.
+	 */
+	--font-ui: 'Archivo', 'Helvetica Neue', Arial, system-ui, sans-serif;
+	--font-code: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+	/* Seven sizes, each step at most a factor of 1.33 up to the head; line heights as ratios. */
+	--type-label: 0.75rem; /* 12/16, weight 600, capitals, +0.08em */
+	--type-meta: 0.875rem; /* 14/20, weight 400 */
+	--type-body: 1.0625rem; /* 17/26, weight 400 */
+	--type-title: 1.25rem; /* 20/24, weight 400 */
+	--type-question: 1.5rem; /* 24/30, weight 600, -0.01em */
+	--type-head: 2rem; /* 32/36, weight 300, capitals */
+	--type-display: clamp(3.5rem, 15vw, 4.5rem); /* 56–72px, weight 300: one per screen */
+	--type-code: 0.9375rem; /* 15/24, Mono 400 */
+	--type-code-small: 0.8125rem; /* 13/20, Mono 400: code sheets that must keep their lines */
+
+	--line-label: calc(16 / 12);
+	--line-meta: calc(20 / 14);
+	--line-body: calc(26 / 17);
+	--line-title: calc(24 / 20);
+	--line-question: calc(30 / 24);
+	--line-head: calc(36 / 32);
+	--line-display: 1;
+	--line-code: calc(24 / 15);
+	--line-code-small: calc(20 / 13);
+
+	--font-weight-light: 300; /* head, display */
+	--font-weight-regular: 400; /* meta, body, title */
+	--font-weight-strong: 600; /* label, question */
+
+	--letter-label: 0.08em;
+	--letter-question: -0.01em;
+	--letter-display: -0.035em;
+
+	/* Motion (DESIGN.md §4). Springs have no duration; they live in modules/core/motion.ts. */
+	--change-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--change-time: 160ms; /* upper bound for a state change */
+	--tap-return: 120ms; /* a pressed key inverts at once and returns in 120ms */
+	--tick-fps: 12; /* readouts and the duck step at 12 frames per second */
+
+	/*
+	 * v2 bridge. These names keep the parts that issues #34–#36 have not rebuilt yet in working
+	 * order. New code never reads them; each line goes when its last reader is rebuilt
+	 * (DESIGN.md §13 lists the readers).
+	 */
+	--font-sans: var(--font-ui);
+	/* The former Mono voice now speaks Archivo. JetBrains Mono stays behind it only as the source
+	   of the signs Archivo lacks (■ ↗) until the icon set has replaced them. */
+	--font-mono: 'Archivo', 'JetBrains Mono', 'Helvetica Neue', Arial, system-ui, sans-serif;
+	--radius: var(--radius-flat);
+	--cell: var(--row);
+	--cell-half: 32px;
+	--type-lead: var(--type-title);
+	--font-weight-display: var(--font-weight-light);
+	--font-weight-title: var(--font-weight-strong);
+	--font-weight-lead: var(--font-weight-strong);
+	--line-tight: 0.92;
+	--line-snug: 1.15;
+	--letter-tight: -0.022em;
+	--step-1: 0.25rem;
+	--step-2: var(--space-s);
+	--step-3: 0.75rem;
+	--step-4: var(--space-m);
+	--step-5: 1.5rem;
+	--step-6: var(--space-l);
+	--step-7: 3rem;
+	--step-8: 4rem;
+}
+
+/*
+ * Surface sets (DESIGN.md §5). `data-surface` swaps every semantic role at once, so a part
+ * reads only roles and works on all six surfaces. The paper set is also the app default.
+ *
+ * Layer 1, the ground:      --surface, --text, --text-muted, --hairline
+ * Layer 2, the neutrals:    --card (raised: I can press this), --well (sunk: read, or locked).
+ *                           Both carry --text and --text-muted of their surface.
+ * Layer 3, the accents:     --mark / --mark-text            yellow: chosen, active, "mine"
+ *                           --grip / --grip-text            orange: handle, way back
+ *                           --deviation / --deviation-text  crimson: deviates, discard
+ *                           --action / --action-text        ink: primary action
+ * Focus:                    --focus / --focus-halo, a 2px ring plus a 2px halo
+ */
+:root,
+[data-surface='paper'] {
+	--surface: var(--palette-paper);
+	--text: var(--palette-ink); /* 17.55 */
+	--text-muted: var(--palette-ink-muted); /* 7.99 */
+	--hairline: var(--palette-ink);
+	--card: var(--palette-white); /* text 19.80, muted 9.01 */
+	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
+	--mark: var(--palette-signal-yellow); /* 1.59 to paper: always with the ink sign */
+	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-signal-orange); /* 3.10 to paper */
+	--grip-text: var(--palette-ink); /* 5.67 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-signal-crimson); /* 5.78 to paper */
+	--deviation-text: var(--palette-white); /* 6.52 */
+	--action: var(--palette-ink);
+	--action-text: var(--palette-paper); /* 17.55 */
+	--focus: var(--palette-ink);
+	--focus-halo: var(--palette-white);
+}
+
+[data-surface='white'] {
+	--surface: var(--palette-white);
+	--text: var(--palette-ink); /* 19.80 */
+	--text-muted: var(--palette-ink-muted); /* 9.01 */
+	--hairline: var(--palette-ink);
+	--card: var(--palette-paper); /* text 17.55, muted 7.99 */
+	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
+	--mark: var(--palette-signal-yellow); /* 1.79 to white: always with the ink sign */
+	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-signal-orange); /* 3.49 to white */
+	--grip-text: var(--palette-ink); /* 5.67 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-signal-crimson); /* 6.52 to white */
+	--deviation-text: var(--palette-white); /* 6.52 */
+	--action: var(--palette-ink);
+	--action-text: var(--palette-white); /* 19.80 */
+	--focus: var(--palette-ink);
+	--focus-halo: var(--palette-white);
+}
+
+[data-surface='yellow'] {
+	--surface: var(--palette-signal-yellow);
+	--text: var(--palette-ink); /* 11.04 */
+	--text-muted: var(--palette-ink-muted); /* 5.03 */
+	--hairline: var(--palette-ink);
+	--card: var(--palette-white); /* text 19.80, muted 9.01 */
+	--well: var(--palette-stone); /* text 15.59, muted 7.10 */
+	--mark: var(--palette-ink); /* yellow cannot mark on yellow: ink plate, yellow sign */
+	--mark-text: var(--palette-signal-yellow); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-ink); /* orange on yellow is 1.95, too weak */
+	--grip-text: var(--palette-signal-yellow); /* 11.04 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-signal-crimson); /* 3.63 to yellow */
+	--deviation-text: var(--palette-white); /* 6.52 */
+	--action: var(--palette-ink);
+	--action-text: var(--palette-signal-yellow); /* 11.04 */
+	--focus: var(--palette-ink);
+	--focus-halo: var(--palette-white);
+}
+
+[data-surface='orange'] {
+	--surface: var(--palette-signal-orange);
+	--text: var(--palette-ink); /* 5.67 */
+	--text-muted: var(--palette-ink); /* no muted text on orange (ink-muted is 2.58) */
+	--hairline: var(--palette-ink);
+	--card: var(--palette-white); /* text 19.80 */
+	--well: var(--palette-stone); /* text 15.59 */
+	--mark: var(--palette-ink);
+	--mark-text: var(--palette-signal-yellow); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-ink); /* orange is the surface, so the grip turns ink */
+	--grip-text: var(--palette-signal-orange); /* 5.67 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-white); /* crimson on orange is 1.87: a white plate, crimson word */
+	--deviation-text: var(--palette-signal-crimson); /* 6.52 */
+	--action: var(--palette-ink);
+	--action-text: var(--palette-signal-orange); /* 5.67 */
+	--focus: var(--palette-ink);
+	--focus-halo: var(--palette-white);
+}
+
+[data-surface='crimson'] {
+	--surface: var(--palette-signal-crimson);
+	--text: var(--palette-white); /* 6.52 */
+	--text-muted: var(--palette-white); /* no muted text on crimson */
+	--hairline: var(--palette-white); /* ink would be 3.04 */
+	--card: var(--palette-graphite); /* text 15.33 */
+	--well: var(--palette-ink); /* text 19.80 */
+	--mark: var(--palette-signal-yellow); /* 3.63 to crimson */
+	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-white); /* 6.52 */
+	--grip-text: var(--palette-ink); /* 19.80 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-white); /* crimson is the surface: a white plate, crimson word */
+	--deviation-text: var(--palette-signal-crimson); /* 6.52 */
+	--action: var(--palette-white);
+	--action-text: var(--palette-signal-crimson); /* 6.52 */
+	--focus: var(--palette-white);
+	--focus-halo: var(--palette-ink);
+}
+
+[data-surface='ink'] {
+	--surface: var(--palette-ink);
+	--text: var(--palette-white); /* 19.80 */
+	--text-muted: var(--palette-muted-on-dark); /* 9.35 */
+	--hairline: var(--palette-muted-on-dark); /* 9.35; structural joints stay visible */
+	/* Ink has nothing darker to sink into: card and well share graphite and differ by shape
+	   (a card is round, a well is square). */
+	--card: var(--palette-graphite); /* text 15.33, muted 7.24 */
+	--well: var(--palette-graphite); /* text 15.33, muted 7.24 */
+	--mark: var(--palette-signal-yellow); /* 11.04 to ink */
+	--mark-text: var(--palette-ink); /* 11.04 */
+	--mark-border: var(--palette-ink);
+	--grip: var(--palette-signal-orange); /* 5.67 */
+	--grip-text: var(--palette-ink); /* 5.67 */
+	--grip-border: var(--palette-ink);
+	--deviation: var(--palette-signal-crimson); /* 3.04 to ink */
+	--deviation-text: var(--palette-white); /* 6.52 */
+	--action: var(--palette-white);
+	--action-text: var(--palette-ink); /* 19.80 */
+	--focus: var(--palette-white);
+	--focus-halo: var(--palette-ink);
+}
+
+@media (min-width: 768px) {
+	:root {
+		--gutter: 2rem; /* 32px */
+	}
+}

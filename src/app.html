@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<!-- App icon: the 2×2 grid in Signal yellow on ink (static/icon.svg); PNG built from it for iOS. -->
+		<link rel="icon" href="%sveltekit.assets%/icon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<!-- Paper until a data-surface takes over; src/lib/styles/surface.ts keeps it in sync. -->
+		<meta name="theme-color" content="#f4f1ea" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<!-- Self-hosted fonts (src/lib/styles/fonts.css). Preload the one voice; the code font
+		     loads only on screens that show code. -->
+		<link
+			rel="preload"
+			href="%sveltekit.assets%/fonts/archivo-latin.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin="anonymous"
+		/>
+		%sveltekit.head%
+		<style>
+			:root[data-route-startup] body {
+				visibility: hidden;
+				animation: route-startup-fallback 0s 2s forwards;
+			}
+			@keyframes route-startup-fallback {
+				to {
+					visibility: visible;
+				}
+			}
+		</style>
+		<script>
+			// The prerendered head identifies the two routes with browser-dependent initial content.
+			(() => {
+				const exercise = document.querySelector('meta[name="tutor-exercise-startup"]');
+				const magazine = document.querySelector('meta[name="tutor-magazin-startup"]');
+				const hasTask = exercise && new URLSearchParams(location.search).has(exercise.content);
+				let rotateLead = false;
+				if (magazine) {
+					const today = new Date();
+					const day = Math.floor(
+						Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000
+					);
+					rotateLead = day % Number(magazine.content) !== 0;
+				}
+				if (hasTask || rotateLead) document.documentElement.dataset.routeStartup = '';
+			})();
+		</script>
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
