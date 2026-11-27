@@ -220,3 +220,49 @@ test('mastery needs two independent successes at distinct moments', () => {
 		'beherrscht'
 	);
 });
+
+test('same-task repetitions five seconds apart stay at one success until delayed recall', () => {
+	const first = { ...older, result: 'korrekt' };
+	for (const [recordedAt, expected] of [
+		['2026-11-26T08:00:05Z', 'einmal_gelungen'],
+		['2026-11-27T07:59:59.999Z', 'einmal_gelungen'],
+		[newDate, 'beherrscht']
+	]) {
+		assert.equal(
+			resolveConceptStatus(concept, [first, { ...first, recordedAt }], 'http'),
+			expected
+		);
+	}
+	assert.equal(
+		resolveConceptStatus(
+			concept,
+			[first, { ...transfer, recordedAt: '2026-11-26T08:00:05Z', result: 'korrekt' }],
+			'http'
+		),
+		'einmal_gelungen'
+	);
+});
+
+test('multi-goal diagnostics apply only to the evidenced goal, with or without practice', () => {
+	const sibling = { ...concept, learningGoalId: 'lz-autodiff-implementieren' };
+	const attempt = { ...practice, itemId: older.taskId };
+	for (const [verdict, expected] of [
+		[{ evidenceLevel: 'teilwissen', result: 'korrekt' }, 'teilweise_gelungen'],
+		[{ result: 'teilweise', helpLevel: 1 }, 'mit_hilfe_gelungen'],
+		[{ evidenceLevel: 'nachgewiesener_fehler' }, 'nicht_gekonnt'],
+		[{ result: 'falsch' }, 'nicht_gekonnt']
+	] as const) {
+		const item = { ...older, attemptId: attempt.id, recordedAt: newDate, ...verdict };
+		for (const recentPractice of [[], [attempt]]) {
+			const observations = conceptEvidence([{ course, recentPractice, evidence: [item] }]);
+			assert.equal(resolveConceptStatus(concept, observations, 'http'), expected);
+			assert.equal(resolveConceptStatus(sibling, observations, 'http'), 'noch_zu_wenig_gesehen');
+		}
+	}
+	const observations = conceptEvidence([
+		{ course, recentPractice: [{ ...attempt, result: 'falsch' }], evidence: [] }
+	]);
+	for (const goal of [concept, sibling]) {
+		assert.equal(resolveConceptStatus(goal, observations, 'http'), 'noch_zu_wenig_gesehen');
+	}
+});

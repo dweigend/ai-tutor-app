@@ -235,7 +235,11 @@ test('live mode hides the locked Modul-2 test split, the demo shows all nine', (
 	assert.equal(ids.filter((id) => visibleInMode(id, 'mock')).length, 9);
 	const live = ids.filter((id) => visibleInMode(id, 'http'));
 	assert.ok(live.every((id) => !id.startsWith('a-gd-')));
-	assert.ok(live.length < 9);
+	assert.equal(live.length, 4);
+	for (const id of ['a-akkumulator-vorhersagen', 'a-ki-durchschnitt-pruefen']) {
+		assert.equal(visibleInMode(id, 'mock'), true);
+		assert.equal(visibleInMode(id, 'http'), false);
+	}
 });
 
 test('live code-lines task sends text, the demo keeps the choice', () => {
@@ -262,7 +266,7 @@ test('AP6 guards both exercise link parameters and queue routes in live mode', (
 			const id = exercise.task.taskId;
 			const params = new URLSearchParams({ [key]: id });
 			const route = '/uebungen?' + params;
-			const allowed = !id.startsWith('a-gd-');
+			const allowed = exercise.task.courseId === 'ki-selbst-bauen' && !id.startsWith('a-gd-');
 			assert.equal(openableTaskId(params, 'http'), allowed ? id : null);
 			assert.equal(routeOpensInMode(route, 'http'), allowed);
 			assert.equal(openableTaskId(params, 'mock'), id);

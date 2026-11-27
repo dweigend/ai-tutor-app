@@ -570,11 +570,16 @@ export class HttpTutorClient implements TutorApiClient {
 		const value = await this.json(`/activity/mirror?${query}`, signal);
 		requireType(isMirror(value) && sameCourse(value.course, expectedCourse));
 		const recentPractice = value.recentPractice.map(withEffectiveResult);
-		// Evidence of an attempt that is not mastery (partial, wrong, received only) is dropped.
+		// Only an explicit success can contradict a non-correct attempt.
 		const notMastery = new Set(
 			recentPractice.filter(({ result }) => !countsAsMastery(result)).map(({ id }) => id)
 		);
 		const evidence = value.evidence.filter((item) => {
+			if (
+				effectiveResult(item.result ?? 'nicht_pruefbar_oder_alternativweg', item.evidenceLevel) !==
+				'korrekt'
+			)
+				return true;
 			const id = evidenceAttemptId(item, recentPractice);
 			return id === undefined || !notMastery.has(id);
 		});

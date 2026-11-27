@@ -1273,7 +1273,7 @@ test('HTTP: das 4-stufige evidenceLevel ist maßgeblich, ungeprüft bleibt neutr
 	);
 });
 
-test('HTTP mirror keeps evidence only for attempts whose effective result counts as mastery', async () => {
+test('HTTP mirror preserves goal-specific diagnostics and rejects contradictory mastery', async () => {
 	const recordedAt = '2026-11-27T08:00:00Z';
 	const recentPractice = [
 		'korrekt',
@@ -1288,7 +1288,9 @@ test('HTTP mirror keeps evidence only for attempts whose effective result counts
 		result: index === 3 ? 'korrekt' : result,
 		...(index === 3 && { evidenceLevel: result })
 	}));
-	const evidence = recentPractice.map(({ id }) => ({
+	const levels = ['geprueft_korrekt', 'teilwissen', 'nachgewiesener_fehler', 'geprueft_korrekt'];
+	const evidence = recentPractice.map(({ id }, index) => ({
+		evidenceLevel: levels[index],
 		id: id + ':1',
 		attemptId: id,
 		taskId: demoTask.taskId,
@@ -1308,7 +1310,7 @@ test('HTTP mirror keeps evidence only for attempts whose effective result counts
 	);
 	const mirror = await client.getActivityMirror(demoCourse);
 	assert.equal(mirror.recentPractice[3].result, 'nicht_pruefbar_oder_alternativweg');
-	assert.deepEqual(mirror.evidence, [evidence[0]]);
+	assert.deepEqual(mirror.evidence, evidence.slice(0, 3));
 });
 
 test('Freie Kursfrage über HTTP behält Kurs und Sitzung über zwei Züge', async () => {

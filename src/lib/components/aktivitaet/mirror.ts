@@ -16,6 +16,9 @@ import type { ActivityConcept } from '../../content/types.js';
 import { tutorialChecks, tutorials } from '../../content/tutorials.js';
 import { exercises } from '../../content/uebungen.js';
 
+/** Delayed recall and transfer both require a full day between independent successes. */
+export const DELAYED_MASTERY_GAP_MS = 24 * 60 * 60 * 1000;
+
 type Practice = Omit<
 	ActivityMirrorSnapshot['recentPractice'][number],
 	'result' | 'evidenceLevel'
@@ -49,10 +52,10 @@ function helpOf(item: LiveObservation): 'none' | 'some' | 'unknown' {
 
 function goalsForPractice(course: CourseRef, practice: Practice): readonly string[] {
 	if (practice.kind === 'exercise') {
-		return (
+		const goals =
 			exercises.find(({ task }) => sameCourse(task, course) && task.taskId === practice.itemId)
-				?.learningGoalIds ?? []
-		);
+				?.learningGoalIds ?? [];
+		return goals.length === 1 ? goals : [];
 	}
 	const checks = tutorialChecks.filter(
 		(check) => sameCourse(check.course, course) && check.tutorialId === practice.itemId
@@ -75,7 +78,22 @@ export function conceptEvidence(snapshots: readonly MirrorInput[]): LiveObservat
 		const observations = recentPractice.flatMap((practice): LiveObservation[] => {
 			const linked = byAttempt.get(practice.id);
 			const result = practiceResult(practice);
-			if (linked) return linked.map((item) => ({ ...item, result }));
+			if (linked)
+				return linked.map((item) => {
+					const verdict =
+						item.evidenceLevel || item.result
+							? effectiveResult(
+									item.result ?? 'nicht_pruefbar_oder_alternativweg',
+									item.evidenceLevel
+								)
+							: undefined;
+					// Goal-specific diagnostics survive the aggregate verdict. A success still needs
+					// a correct attempt, including for legacy evidence without its own verdict.
+					return {
+						...item,
+						result: verdict === undefined || verdict === 'korrekt' ? result : verdict
+					};
+				});
 			return goalsForPractice(course, practice).map((learningGoalId) => ({
 				learningGoalId,
 				taskId: practice.itemId,
@@ -121,7 +139,7 @@ export function resolveConceptStatus(
 				(item) =>
 					item.result === 'korrekt' &&
 					helpOf(item) === 'none' &&
-					Date.parse(item.recordedAt) < Date.parse(latest.recordedAt)
+					Date.parse(latest.recordedAt) - Date.parse(item.recordedAt) >= DELAYED_MASTERY_GAP_MS
 			);
 			if (!priorIndependentSuccess) return 'einmal_gelungen';
 			const newTask = earlier.every((item) => item.taskId !== latest.taskId);

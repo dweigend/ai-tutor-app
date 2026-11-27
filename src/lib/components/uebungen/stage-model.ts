@@ -1,3 +1,4 @@
+import { exerciseForTask } from '../../content/uebungen.js';
 import { effectiveResult } from '../../api/types.js';
 import type {
 	ApiMode,
@@ -298,9 +299,11 @@ export function attemptResult(response: {
 	return effectiveResult(response.result, response.evidenceLevel);
 }
 
-/** Modul-2 test-split tasks are locked in the live backend (AP6); the local demo shows all. */
+/** The HTTP backend serves only the AI course and locks its Modul-2 test split (AP6). */
 export function visibleInMode(taskId: string, mode: ApiMode): boolean {
-	return mode !== 'http' || !taskId.startsWith('a-gd-');
+	if (mode === 'mock') return true;
+	const task = exerciseForTask(taskId)?.task;
+	return task?.courseId === 'ki-selbst-bauen' && !task.taskId.startsWith('a-gd-');
 }
 
 /** The task a deep link asks for (`?aufgabe=` or `?task=`), unless it is locked in this mode. */

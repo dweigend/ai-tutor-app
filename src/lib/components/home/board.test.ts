@@ -19,7 +19,7 @@ const { todayProgress } = await import('./progress.js');
 const CORE = ['a', 'b', 'c'];
 const SLOTS = 2;
 
-test('a saved learning-rate tile is available only on the mock board', () => {
+test('the mock board includes Python and AP6 tiles, the live board keeps served tasks', () => {
 	const locked = {
 		id: 'activity:lernrate',
 		title: 'Lernrate',
@@ -27,14 +27,20 @@ test('a saved learning-rate tile is available only on the mock board', () => {
 		type: 'exercise',
 		addedAt: 2
 	} as const;
-	const open = {
+	const python = {
 		...locked,
 		id: 'accumulator',
 		route: '/uebungen?task=a-akkumulator-vorhersagen',
 		addedAt: 1
 	};
-	assert.deepEqual(homeTopics([open, locked], 'mock'), [locked, open]);
-	assert.deepEqual(homeTopics([open, locked], 'http'), [open]);
+	const open = {
+		...locked,
+		id: 'retrieval',
+		route: '/uebungen?task=a-bp-addieren-erklaeren',
+		addedAt: 0
+	};
+	assert.deepEqual(homeTopics([open, python, locked], 'mock'), [locked, python, open]);
+	assert.deepEqual(homeTopics([open, python, locked], 'http'), [open]);
 });
 
 test('without topics the board shows the areas in their first order', () => {
