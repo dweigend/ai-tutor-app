@@ -104,11 +104,18 @@ function isOptionalScope(value: unknown): boolean {
 }
 
 function isEvidence(value: unknown): value is LearningEvidence {
-	normalizeOptionalFields(value, ['attemptId', 'result', 'evidenceLevel', 'evidenceScope']);
+	normalizeOptionalFields(value, [
+		'stepId',
+		'attemptId',
+		'result',
+		'evidenceLevel',
+		'evidenceScope'
+	]);
 	return (
 		isRecord(value) &&
 		isId(value.id) &&
 		(value.attemptId === undefined || isId(value.attemptId)) &&
+		(value.stepId === undefined || isId(value.stepId)) &&
 		isId(value.taskId) &&
 		isId(value.learningGoalId) &&
 		isOptionalScope(value.evidenceScope) &&
@@ -133,11 +140,18 @@ function withEffectiveResult<T extends { result: CheckResult; evidenceLevel?: Ev
 }
 
 function isPractice(value: unknown): value is ActivityMirrorSnapshot['recentPractice'][number] {
-	normalizeOptionalFields(value, ['learningGoalId', 'helpLevel', 'evidenceScope', 'evidenceLevel']);
+	normalizeOptionalFields(value, [
+		'stepId',
+		'learningGoalId',
+		'helpLevel',
+		'evidenceScope',
+		'evidenceLevel'
+	]);
 	return (
 		isRecord(value) &&
 		(value.kind === 'tutorial' || value.kind === 'exercise') &&
 		isId(value.id) &&
+		(value.stepId === undefined || isId(value.stepId)) &&
 		isId(value.itemId) &&
 		isOptionalScope(value.evidenceScope) &&
 		(value.learningGoalId === undefined || isId(value.learningGoalId)) &&

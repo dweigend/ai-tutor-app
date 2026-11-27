@@ -1,3 +1,4 @@
+import type { LiveObservation } from './mirror.js';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
@@ -326,5 +327,45 @@ test('direct practice diagnostics supersede only the named goal', () => {
 			resolveConceptStatus({ ...concept, learningGoalId: 'lz-b' }, evidence, 'http'),
 			'noch_zu_wenig_gesehen'
 		);
+	}
+});
+
+const { activityMirror } = await import('../../content/aktivitaet.js');
+
+for (const [result, expected] of [
+	['korrekt', 'einmal_gelungen'],
+	['falsch', 'nicht_gekonnt']
+] as const) {
+	test(`numeric gradient recall affects only accumulation when ${result}`, () => {
+		const item: LearningEvidence = {
+			...older,
+			stepId: 'abruf',
+			kind: 'abruf',
+			evidenceScope: 'teilaspekt',
+			result
+		};
+		const observations = conceptEvidence([{ course, recentPractice: [], evidence: [item] }]);
+		for (const [id, status] of [
+			['gradient-akkumulieren', expected],
+			['kettenregel', 'noch_zu_wenig_gesehen'],
+			['rechengraph', 'noch_zu_wenig_gesehen']
+		]) {
+			const card = activityMirror.concepts.find((entry) => entry.conceptId === id);
+			assert.ok(card);
+			assert.equal(resolveConceptStatus(card, observations, 'http'), status, id);
+		}
+	});
+}
+
+test('softmax exercise and tutorial leave calibration unseen', () => {
+	const softmax = activityMirror.concepts.find((entry) => entry.conceptId === 'softmax');
+	const calibration = activityMirror.concepts.find((entry) => entry.conceptId === 'kalibrierung');
+	assert.ok(softmax && calibration);
+	for (const taskId of ['attention-skalierung', 'a-m5-softmax-kreuzentropie']) {
+		const observations: LiveObservation[] = [
+			{ ...older, taskId, learningGoalId: softmax.learningGoalId, result: 'korrekt' }
+		];
+		assert.equal(resolveConceptStatus(softmax, observations, 'http'), 'einmal_gelungen');
+		assert.equal(resolveConceptStatus(calibration, observations, 'http'), 'noch_zu_wenig_gesehen');
 	}
 });

@@ -211,6 +211,7 @@ export interface TutorialCheckResponse {
 export type EvidenceScope = 'vollstaendig' | 'teilaspekt';
 
 export interface LearningEvidence {
+	stepId?: string;
 	evidenceScope?: EvidenceScope;
 	evidenceLevel?: EvidenceLevel;
 	result?: CheckResult;
@@ -263,6 +264,7 @@ export interface ExerciseAttemptResponse {
 export interface ActivityMirrorSnapshot {
 	course: CourseRef;
 	recentPractice: {
+		stepId?: string;
 		kind: 'tutorial' | 'exercise';
 		id: string;
 		itemId: string;

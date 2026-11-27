@@ -386,7 +386,12 @@ type PracticeObservation =
 			transferDistance?: 'near' | 'far';
 	  };
 
-export type ActivityConcept = { conceptId: string; learningGoalId: string; label: string } & (
+export type ActivityConcept = {
+	conceptId: string;
+	learningGoalId: string;
+	taskIds?: readonly string[];
+	label: string;
+} & (
 	| { status: 'noch_zu_wenig_gesehen'; nextPractice?: string }
 	| {
 			status:

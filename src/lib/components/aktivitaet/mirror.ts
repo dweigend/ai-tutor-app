@@ -118,12 +118,16 @@ export function conceptEvidence(snapshots: readonly MirrorInput[]): LiveObservat
 }
 
 export function resolveConceptStatus(
-	concept: Pick<ActivityConcept, 'learningGoalId' | 'status'>,
+	concept: Pick<ActivityConcept, 'learningGoalId' | 'taskIds' | 'status'>,
 	liveEvidence: readonly LiveObservation[],
 	mode: ApiMode
 ): ConceptStatus {
 	const observations = liveEvidence
-		.filter((item) => item.learningGoalId === concept.learningGoalId)
+		.filter(
+			(item) =>
+				item.learningGoalId === concept.learningGoalId &&
+				(concept.taskIds === undefined || concept.taskIds.includes(item.taskId))
+		)
 		.sort((left, right) => Date.parse(right.recordedAt) - Date.parse(left.recordedAt));
 	const [latest, ...earlier] = observations;
 	if (!latest) return mode === 'mock' ? concept.status : 'noch_zu_wenig_gesehen';

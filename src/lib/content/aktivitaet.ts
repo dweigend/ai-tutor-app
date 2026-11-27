@@ -80,6 +80,7 @@ export const activityMirror: ActivityMirrorSeed = {
 	concepts: [
 		{
 			conceptId: 'gradient-akkumulieren',
+			taskIds: ['a-bp-addieren-erklaeren', 'a-bp-mehrfachnutzung-vorhersagen'],
 			learningGoalId: 'lz-rechengraph-gradienten',
 			label: 'Beiträge addieren (+=)',
 			status: 'mit_hilfe_gelungen',
@@ -89,6 +90,12 @@ export const activityMirror: ActivityMirrorSeed = {
 		},
 		{
 			conceptId: 'kettenregel',
+			taskIds: [
+				'a-bp-skizze-rechengraph',
+				'a-bp-parsons-backward',
+				'a-bp-value-addmul',
+				'a-bp-value-tanh-pow'
+			],
 			learningGoalId: 'lz-rechengraph-gradienten',
 			label: 'Kettenregel im Rechengraphen',
 			status: 'beherrscht',
@@ -97,6 +104,7 @@ export const activityMirror: ActivityMirrorSeed = {
 		},
 		{
 			conceptId: 'rechengraph',
+			taskIds: ['a-bp-preiskette-transfer'],
 			learningGoalId: 'lz-rechengraph-gradienten',
 			label: 'Rechengraph in neuem Kontext',
 			status: 'übertragbar',
@@ -129,6 +137,7 @@ export const activityMirror: ActivityMirrorSeed = {
 		},
 		{
 			conceptId: 'softmax',
+			taskIds: ['a-m5-softmax-kreuzentropie', 'attention-skalierung'],
 			learningGoalId: 'lz-softmax-kreuzentropie-erklaeren',
 			label: 'Softmax und Skalierung',
 			status: 'noch_zu_wenig_gesehen',
@@ -136,6 +145,7 @@ export const activityMirror: ActivityMirrorSeed = {
 		},
 		{
 			conceptId: 'kalibrierung',
+			taskIds: ['a-kalibrierung-probe'],
 			learningGoalId: 'lz-softmax-kreuzentropie-erklaeren',
 			label: 'Sicherheit und Trefferquote',
 			status: 'noch_zu_wenig_gesehen',

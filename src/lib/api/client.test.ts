@@ -9,6 +9,7 @@ import type {
 	AgentContextSnapshot,
 	ApiProblem,
 	ExerciseAttemptRequest,
+	LearningEvidence,
 	StreamEvent,
 	TutorApiClient,
 	TutorArtifact,
@@ -44,10 +45,12 @@ const {
 } = await import('./index.js');
 const { defaultFixtures, demoCourse, demoTask, demoTutorialId, demoCheckId } =
 	await import('./defaultFixtures.js');
-const { buildEditorialMockFixtures, exercises } = await import('../content/index.js');
+const { activityMirror, buildEditorialMockFixtures, exercises } =
+	await import('../content/index.js');
 const { conceptEvidence, resolveConceptStatus } =
 	await import('../components/aktivitaet/mirror.js');
 const { visibleInMode } = await import('../components/uebungen/stage-model.js');
+const { ExerciseSessions, helpForMove } = await import('../components/tutor/sessionStore.js');
 hooks.deregister();
 
 const options = { confirmationDelayMs: 25, tokenDelayMs: 0 };
@@ -1481,18 +1484,20 @@ test('mixed activity mirror accepts nullable diagnostics and preserves checked e
 		kind: 'exercise',
 		itemId: 'task',
 		recordedAt: '2026-11-27T08:00:00Z',
+		stepId: null,
 		learningGoalId: null,
 		helpLevel: null,
 		evidenceScope: null,
 		evidenceLevel: null
 	};
 	const recentPractice = [
-		{ ...practice, id: 'a', result: 'korrekt' },
+		{ ...practice, id: 'a', result: 'korrekt', stepId: 'abruf' },
 		{ ...practice, id: 'b', result: 'teilweise', evidenceLevel: 'teilwissen' },
 		{ ...practice, id: 'c', result: 'nicht_pruefbar_oder_alternativweg' }
 	];
 	const evidence = ['goal-1', 'goal-2'].map((learningGoalId, i) => ({
 		id: 'a:' + i,
+		stepId: i === 0 ? 'abruf' : null,
 		taskId: 'task',
 		kind: 'abruf',
 		learningGoalId,
@@ -1515,6 +1520,14 @@ test('mixed activity mirror accepts nullable diagnostics and preserves checked e
 		mirror.evidence.map((x) => x.id),
 		evidence.map((x) => x.id)
 	);
+	assert.deepEqual(
+		mirror.recentPractice.map((item) => item.stepId),
+		['abruf', undefined, undefined]
+	);
+	assert.deepEqual(
+		mirror.evidence.map((item) => item.stepId),
+		['abruf', undefined]
+	);
 	for (const item of mirror.recentPractice) {
 		assert.equal(item.learningGoalId, undefined);
 		assert.equal(item.helpLevel, undefined);
@@ -1527,4 +1540,48 @@ test('mixed activity mirror accepts nullable diagnostics and preserves checked e
 		assert.equal(item.evidenceLevel, undefined);
 		assert.equal(item.evidenceScope, undefined);
 	}
+});
+
+test('contrast help survives a session change from exercise submission through the HTTP mirror', async () => {
+	const sessions = new ExerciseSessions();
+	const card = activityMirror.concepts.find((item) => item.conceptId === 'gradient-akkumulieren');
+	assert.ok(card);
+	const task = { ...activityMirror.course, taskId: 'a-bp-addieren-erklaeren' };
+	const binding = sessions.beginAttempt(task);
+	sessions.start(task, 'A');
+	sessions.recordHelp(task, 'A', helpForMove('kontrastfall'));
+	sessions.close(task, 'A');
+	sessions.start(task, 'B');
+	sessions.recordHelp(task, 'B', helpForMove('nachhaken'));
+	const grader = new MockTutorClient(buildEditorialMockFixtures(), options);
+	// The HTTP service derives help from the session named in the submission.
+	const serverHelp = new Map([
+		['A', 1],
+		['B', 0]
+	]);
+	let savedEvidence: LearningEvidence[] = [];
+	const client = new HttpTutorClient('/', async (_url, init) => {
+		if (init?.method === 'POST') {
+			const body = JSON.parse(String(init.body));
+			assert.equal(body.sessionId, 'A');
+			const reply = await grader.evaluateExercise(body);
+			const helpLevel = serverHelp.get(body.sessionId);
+			assert.ok(helpLevel === 0 || helpLevel === 1);
+			savedEvidence = reply.evidence.map((item) => ({ ...item, helpLevel }));
+			return Response.json({ ...reply, evidence: savedEvidence });
+		}
+		return Response.json({ ...(await grader.getActivityMirror(task)), evidence: savedEvidence });
+	});
+	const reply = await client.evaluateExercise({
+		kind: 'exercise',
+		requestId: 'contrast-recall',
+		stepId: 'abruf',
+		task,
+		answer: { kind: 'text', text: '8' },
+		...binding
+	});
+	assert.equal(reply.result, 'korrekt');
+	const mirror = await client.getActivityMirror(task);
+	assert.equal(mirror.evidence[0]?.helpLevel, 1);
+	assert.equal(resolveConceptStatus(card, conceptEvidence([mirror]), 'http'), 'mit_hilfe_gelungen');
 });
