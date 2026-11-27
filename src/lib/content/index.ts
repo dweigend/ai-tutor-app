@@ -18,7 +18,8 @@ export function buildEditorialMockFixtures(): MockFixtures {
 	const scenarios = [
 		...tutorScenarios,
 		...defaultFixtures.scenarios.filter(
-			(demo) => !tutorScenarios.some((item) => sameTask(item.task, demo.task))
+			(demo) =>
+				!tutorScenarios.some((item) => item.task && demo.task && sameTask(item.task, demo.task))
 		)
 	];
 	const tutorials = [
@@ -36,7 +37,8 @@ export function buildEditorialMockFixtures(): MockFixtures {
 	const exercises = [
 		...exerciseChecks,
 		...defaultFixtures.exercises.filter(
-			(demo) => !exerciseChecks.some((item) => sameTask(item.task, demo.task))
+			(demo) =>
+				!exerciseChecks.some((item) => item.task && demo.task && sameTask(item.task, demo.task))
 		)
 	];
 	return { scenarios, tutorials, exercises };

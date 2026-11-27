@@ -64,12 +64,12 @@ export function resetRoute(url: URL) {
 		route === '/whiteboard' &&
 		tutorScenarios.find((item) => item.id === url.searchParams.get('scenario'));
 	const entry = route.startsWith('/magazin/') && findEntry(route.slice('/magazin/'.length));
-	const taskRef = exercise?.task ?? (scenario ? scenario.task : undefined);
+	const taskRef = exercise?.task ?? (scenario ? (scenario.task ?? undefined) : undefined);
 	viewPublishesContext = false;
 	updateScreen({
 		route,
 		taskRef,
-		courseId: taskRef?.courseId,
+		courseId: taskRef?.courseId ?? (scenario ? scenario.course?.courseId : undefined),
 		topic: exercise?.title ?? (entry ? entry.item.question : labels[route]),
 		media:
 			entry && entry.kind === 'episode'

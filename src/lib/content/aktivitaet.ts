@@ -9,10 +9,15 @@ function task(taskId: string): TaskRef {
 	return { ...course, taskId };
 }
 
-export const activityStatusCopy: Readonly<Record<ActivityConcept['status'], { label: string }>> = {
+export const activityStatusCopy: Readonly<
+	Record<ActivityConcept['status'] | 'eingereicht_ungeprueft', { label: string }>
+> = {
+	eingereicht_ungeprueft: { label: 'Eingereicht' },
 	noch_zu_wenig_gesehen: { label: 'Noch zu wenig gesehen' },
 	nicht_gekonnt: { label: 'Wackelt noch' },
-	mit_hilfe_gelungen: { label: 'Mit Tipp' },
+	einmal_gelungen: { label: 'Einmal selbstständig' },
+	teilweise_gelungen: { label: 'Teilweise gelungen' },
+	mit_hilfe_gelungen: { label: 'Mit Hilfe' },
 	beherrscht: { label: 'Sitzt' },
 	übertragbar: { label: 'Sitzt sicher' }
 };

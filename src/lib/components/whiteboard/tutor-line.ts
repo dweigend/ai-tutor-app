@@ -1,4 +1,4 @@
-import type { StreamEvent, TaskRef, TutorTurnRequest, WhiteboardSnapshot } from '$lib/api/types';
+import type { StreamEvent, TutorScope, TutorTurnRequest, WhiteboardSnapshot } from '$lib/api/types';
 
 /**
  * The live tutor on the board: one question back, streamed into a narrow line over the sketch.
@@ -13,15 +13,16 @@ export type TutorLine =
 
 export const IDLE: TutorLine = { phase: 'idle' };
 
-export function whiteboardTurn(args: {
-	task: TaskRef;
-	sessionId: string;
-	expectedRevision: number;
-	requestId: string;
-	snapshot: WhiteboardSnapshot;
-}): TutorTurnRequest {
-	const { task, sessionId, expectedRevision, requestId, snapshot } = args;
-	return { task, sessionId, expectedRevision, requestId, input: { kind: 'whiteboard', snapshot } };
+export function whiteboardTurn(
+	args: TutorScope & {
+		sessionId: string;
+		expectedRevision: number;
+		requestId: string;
+		snapshot: WhiteboardSnapshot;
+	}
+): TutorTurnRequest {
+	const { snapshot, ...turn } = args;
+	return { ...turn, input: { kind: 'whiteboard', snapshot } };
 }
 
 /** Folds one stream event into the line. The final message wins over the collected deltas. */

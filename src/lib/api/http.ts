@@ -13,7 +13,7 @@ import {
 	isRevision,
 	isTutorArtifact,
 	sameCourse,
-	sameTask
+	matchesTutorScope
 } from './types.js';
 import type {
 	ActivityMirrorSnapshot,
@@ -211,7 +211,15 @@ function isReply(value: unknown): value is TutorReply {
 }
 
 function isSession(value: unknown): value is TutorTurnResponse['session'] {
-	if (!isRecord(value) || !isId(value.id) || !isTask(value.task) || !isRevision(value.revision))
+	// Omitted optional fields on the wire use the same null representation internally.
+	if (isRecord(value) && value.task === undefined) value.task = null;
+	if (
+		!isRecord(value) ||
+		!isId(value.id) ||
+		(value.task !== null && !isTask(value.task)) ||
+		(value.course !== undefined && !isCourse(value.course)) ||
+		!isRevision(value.revision)
+	)
 		return false;
 	const state = value.state;
 	return (
@@ -244,7 +252,7 @@ function matchesTurn(response: TutorTurnResponse, request: TutorTurnRequest): bo
 		response.requestId !== request.requestId ||
 		session.id !== request.sessionId ||
 		session.revision !== request.expectedRevision + 1 ||
-		!sameTask(session.task, request.task)
+		!matchesTutorScope(session, request)
 	)
 		return false;
 
@@ -421,6 +429,7 @@ export class HttpTutorClient implements TutorApiClient {
 	private prepareTurn(request: TutorTurnRequest, signal?: AbortSignal): TutorTurnRequest {
 		checkAbort(signal);
 		const { agentContext, ...body } = request;
+		if (!body.task) delete body.task;
 		if (isProtectedTutorTurn(body.task, agentContext?.visibleScreen)) {
 			throw new ApiError({
 				code: 'unavailable',

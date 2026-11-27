@@ -13,6 +13,7 @@
 		TutorTurnResponse
 	} from '$lib/api/types';
 	import { tutorScenarios } from '$lib/content/tutor';
+	import { tutorScope } from '$lib/api/types';
 	import type { TutorScenario } from '$lib/content/types';
 	import DuckStage from '$lib/components/duck/DuckStage.svelte';
 	import {
@@ -132,8 +133,8 @@
 	$effect(() => {
 		screen.setScreen({
 			route: '/tutor',
-			taskRef: scenario.task,
-			courseId: scenario.task.courseId,
+			taskRef: scenario.task ?? undefined,
+			courseId: (scenario.task ? scenario.task : scenario.course).courseId,
 			topic: scenario.title
 		});
 	});
@@ -296,7 +297,7 @@
 
 		reaction = null;
 		const request: TutorTurnRequest = {
-			task: scenario.task,
+			...tutorScope(scenario),
 			sessionId,
 			expectedRevision: revision,
 			requestId: crypto.randomUUID(),

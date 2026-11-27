@@ -1310,3 +1310,58 @@ test('HTTP mirror keeps evidence only for attempts whose effective result counts
 	assert.equal(mirror.recentPractice[3].result, 'nicht_pruefbar_oder_alternativweg');
 	assert.deepEqual(mirror.evidence, [evidence[0]]);
 });
+
+test('Freie Kursfrage über HTTP behält Kurs und Sitzung über zwei Züge', async () => {
+	const client = new HttpTutorClient(origin, async (url, init) => {
+		const body = JSON.parse(String(init?.body));
+		assert.deepEqual(body.course, demoCourse);
+		assert.equal('task' in body, false);
+		return fetch(url, init);
+	});
+	const first = await client.turn({
+		course: demoCourse,
+		sessionId: 'freie-kursfrage',
+		expectedRevision: 0,
+		requestId: 'frei-1',
+		input: { kind: 'message', text: 'Wie lernt ein Netz?' }
+	});
+	assert.equal(first.session.task, null);
+	assert.deepEqual(first.session.course, demoCourse);
+	assert.equal(first.session.revision, 1);
+	const second = await client.turn({
+		task: null,
+		course: demoCourse,
+		sessionId: first.session.id,
+		expectedRevision: first.session.revision,
+		requestId: 'frei-2',
+		input: { kind: 'message', text: 'Welche Rolle spielt der Gradient?' }
+	});
+	assert.equal(second.session.task, null);
+	assert.equal(second.session.id, first.session.id);
+	assert.equal(second.session.revision, 2);
+});
+
+test('HTTP prüft Aufgabe und Kurs der bestätigten Sitzung', async () => {
+	const request = turn('sitzungsart', 0, { kind: 'message', text: 'Warum?' });
+	const reply = await new MockTutorClient().turn(request);
+	const withSession = (fields: object) =>
+		new HttpTutorClient('/', async () =>
+			Response.json({ ...reply, session: { ...reply.session, ...fields } })
+		);
+	const free = { ...request, task: null, course: demoCourse };
+	for (const task of [{ courseId: 'kaputt' }, null, undefined])
+		await assert.rejects(withSession({ task }).turn(request), (error) =>
+			assertProblem(error, 'protocol')
+		);
+	for (const fields of [
+		{ task: demoTask },
+		{ task: null, course: { ...demoCourse, courseVersion: 'anders' } }
+	])
+		await assert.rejects(withSession(fields).turn(free), (error) =>
+			assertProblem(error, 'protocol')
+		);
+	assert.equal(
+		(await withSession({ task: undefined, course: demoCourse }).turn(free)).session.task,
+		null
+	);
+});

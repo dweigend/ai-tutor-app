@@ -26,6 +26,8 @@
 		eingereicht_ungeprueft: 'neutral',
 		noch_zu_wenig_gesehen: 'neutral',
 		nicht_gekonnt: 'bad',
+		einmal_gelungen: 'mid',
+		teilweise_gelungen: 'mid',
 		mit_hilfe_gelungen: 'mid',
 		beherrscht: 'good',
 		übertragbar: 'good'
@@ -80,10 +82,7 @@
 	<ul role="list">
 		{#each concepts as concept (concept.conceptId)}
 			{@const status = resolveConceptStatus(concept, liveEvidence, mode)}
-			{@const label =
-				status === 'eingereicht_ungeprueft'
-					? 'Eingereicht, noch ungeprüft'
-					: activityStatusCopy[status].label}
+			{@const label = activityStatusCopy[status].label}
 			{@const topic = activityQueueTopics[concept.conceptId]}
 			{@const selected = queued.has(`activity:${concept.conceptId}`)}
 			<li>

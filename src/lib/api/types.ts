@@ -97,19 +97,33 @@ export type TutorMessage =
 
 export interface TutorSession {
 	id: string;
-	task: TaskRef;
+	task: TaskRef | null;
+	course?: CourseRef;
 	revision: number;
 	state: { attempts: number; hintsRemaining: number; explanationAvailable: boolean };
 }
 
-export interface TutorTurnRequest {
-	task: TaskRef;
+export type TutorScope = { task: TaskRef; course?: CourseRef } | { course: CourseRef; task?: null };
+
+export function tutorScope(scope: TutorScope): TutorScope {
+	return scope.task ? { task: scope.task } : { course: scope.course };
+}
+
+export function matchesTutorScope(session: TutorSession, request: TutorScope): boolean {
+	if (session.course && !sameCourse(session.course, request.task ? request.task : request.course))
+		return false;
+	return request.task
+		? !!session.task && sameTask(session.task, request.task)
+		: session.task === null;
+}
+
+export type TutorTurnRequest = TutorScope & {
 	sessionId: string;
 	expectedRevision: number;
 	requestId: string;
 	input: TutorInput;
 	agentContext?: AgentContextSnapshot;
-}
+};
 
 type ArtifactHeader = { id: string; title: string };
 export type Formula = ArtifactHeader & {

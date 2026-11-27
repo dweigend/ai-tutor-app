@@ -47,7 +47,7 @@ export function clearSession(scenarioId: string): void {
 	sessions.delete(scenarioId);
 }
 
-export function selectScenario<T extends { id: string; task: { taskId: string } }>(
+export function selectScenario<T extends { id: string; task?: { taskId: string } | null }>(
 	scenarios: readonly T[],
 	query: URLSearchParams,
 	previous: string | null
@@ -55,7 +55,7 @@ export function selectScenario<T extends { id: string; task: { taskId: string } 
 	const id = query.get('szenario') ?? query.get('scenario');
 	return (
 		scenarios.find((item) => item.id === id) ??
-		scenarios.find((item) => item.task.taskId === query.get('aufgabe')) ??
+		scenarios.find((item) => item.task?.taskId === query.get('aufgabe')) ??
 		scenarios.find((item) => item.id === previous) ??
 		scenarios[0]
 	);

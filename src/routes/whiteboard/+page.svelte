@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { getTutorAppContext } from '$lib/api/context.svelte';
+	import { tutorScope } from '$lib/api/types';
 	import Whiteboard from '$lib/components/whiteboard/Whiteboard.svelte';
 	import { fromSnapshot } from '$lib/components/whiteboard/strokes';
 	import { tutorScenarios } from '$lib/content/tutor';
@@ -26,7 +27,9 @@
 	);
 
 	// The live tutor asks within the scenario that sent the learner here, else the first one.
-	let task = $derived(exercise?.task ?? (returnScenario ?? tutorScenarios[0]).task);
+	let scope = $derived(
+		exercise ? { task: exercise.task } : tutorScope(returnScenario ?? tutorScenarios[0])
+	);
 	let boardKey = $derived(returnTask ? `exercise:${returnTask}` : returnScenario?.id);
 
 	// The sketch kept for that task or scenario comes back onto the board, once.
@@ -61,7 +64,7 @@
 </svelte:head>
 
 {#key boardKey}
-	<Whiteboard bind:this={board} client={tutorApp.client} {task}>
+	<Whiteboard bind:this={board} client={tutorApp.client} {scope}>
 		{#snippet top()}
 			{#if returnTask || returnScenario}
 				<IconButton

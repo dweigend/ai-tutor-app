@@ -109,26 +109,26 @@ export function resolveConceptStatus(
 		case 'falsch':
 			return 'nicht_gekonnt';
 		case 'teilweise':
-			// Partial knowledge without help is not a success; only with help it counts as "mit Hilfe".
-			return help === 'some' ? 'mit_hilfe_gelungen' : 'nicht_gekonnt';
+			if (help === 'unknown') return 'eingereicht_ungeprueft';
+			return help === 'some' ? 'mit_hilfe_gelungen' : 'teilweise_gelungen';
 		case 'nicht_pruefbar_oder_alternativweg':
 			return 'eingereicht_ungeprueft';
 		case 'korrekt': {
 			// A correct answer after a hint, or without a known help level, is never mastery.
-			if (help !== 'none') return 'mit_hilfe_gelungen';
+			if (help === 'unknown') return 'eingereicht_ungeprueft';
+			if (help === 'some') return 'mit_hilfe_gelungen';
 			const priorIndependentSuccess = earlier.some(
 				(item) =>
 					item.result === 'korrekt' &&
 					helpOf(item) === 'none' &&
 					Date.parse(item.recordedAt) < Date.parse(latest.recordedAt)
 			);
+			if (!priorIndependentSuccess) return 'einmal_gelungen';
 			const newTask = earlier.every((item) => item.taskId !== latest.taskId);
-			return latest.kind === 'transfer' && priorIndependentSuccess && newTask
-				? 'übertragbar'
-				: 'beherrscht';
+			return latest.kind === 'transfer' && newTask ? 'übertragbar' : 'beherrscht';
 		}
 		default:
-			return 'noch_zu_wenig_gesehen';
+			return 'eingereicht_ungeprueft';
 	}
 }
 

@@ -18,6 +18,7 @@ import {
 	isRecord,
 	isRevision,
 	isWhiteboardSnapshot,
+	matchesTutorScope,
 	sameCourse,
 	sameTask
 } from './types.js';
@@ -374,7 +375,7 @@ interface PendingTurn {
 function applicableContext(request: TutorTurnRequest): AgentContextSnapshot | undefined {
 	const context = request.agentContext;
 	const screenTask = context?.visibleScreen.taskRef;
-	return screenTask && !sameTask(screenTask, request.task) ? undefined : context;
+	return screenTask && (!request.task || !sameTask(screenTask, request.task)) ? undefined : context;
 }
 
 function artifactFor(
@@ -412,14 +413,18 @@ function artifactFor(
 	}
 	const screen = context?.visibleScreen;
 	if (/\b(formel|latex|gleichung)\b/i.test(text) || screen?.formulaId || screen?.termId) {
-		return formulaArtifact(id, request.task.taskId, screen?.formulaId);
+		return formulaArtifact(id, request.task?.taskId, screen?.formulaId);
 	}
 	if (/rückfrage/i.test(text)) {
 		return { id, kind: 'question', title: 'Dein nächster Schritt', prompt: reply.text };
 	}
 }
 
-function formulaArtifact(id: string, taskId: string, formulaId?: string): TutorArtifact {
+function formulaArtifact(
+	id: string,
+	taskId: string | undefined,
+	formulaId?: string
+): TutorArtifact {
 	if (formulaId && /attention/i.test(formulaId)) {
 		return {
 			id,
@@ -470,7 +475,8 @@ export class MockTutorClient implements TutorApiClient {
 		return {
 			session: {
 				id: request.sessionId,
-				task: request.task,
+				task: request.task ?? null,
+				...(request.course && { course: request.course }),
 				revision: 0,
 				state: {
 					attempts: 0,
@@ -511,14 +517,33 @@ export class MockTutorClient implements TutorApiClient {
 
 	private commitTurn(request: TutorTurnRequest, protectedProbe: boolean): TutorTurnResponse {
 		const previous = this.sessions.get(request.sessionId);
-		if (previous && !sameTask(previous.session.task, request.task)) {
+		if (previous && !matchesTutorScope(previous.session, request)) {
 			throw conflict('Die Sitzung gehört zu einer anderen Aufgabe.');
 		}
 		if ((previous?.session.revision ?? 0) !== request.expectedRevision) {
 			throw conflict('Die Sitzung wurde seit deiner letzten Ansicht geändert.');
 		}
 		if (protectedProbe) return this.commitGuidance(request, INDEPENDENT_PROBE_HELP, previous);
-		const scenario = this.fixtures.scenarios.find((item) => sameTask(item.task, request.task));
+		const task = request.task;
+		if (!task) {
+			const context = applicableContext(request);
+			const reference =
+				context &&
+				contextualReference(
+					context,
+					true,
+					request.input.kind === 'message' && /notiz|erinner/i.test(request.input.text)
+				);
+			const question = previous
+				? 'Wie würdest du das an einem Beispiel erklären?'
+				: 'An welchem Beispiel möchtest du deine Frage untersuchen?';
+			return this.commitGuidance(
+				request,
+				[reference, question].filter(Boolean).join(' '),
+				previous
+			);
+		}
+		const scenario = this.fixtures.scenarios.find((item) => item.task && sameTask(item.task, task));
 		if (!scenario) {
 			const exercise = exerciseForTask(request.task.taskId);
 			if (!exercise || !sameTask(exercise.task, request.task))

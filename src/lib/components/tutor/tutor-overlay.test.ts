@@ -13,7 +13,8 @@ hooks.deregister();
 
 const scenarios = [
 	{ id: 'eins', task: { taskId: 'a' } },
-	{ id: 'zwei', task: { taskId: 'b' } }
+	{ id: 'zwei', task: { taskId: 'b' } },
+	{ id: 'freie-frage', course: { courseId: 'k', courseVersion: '1' } }
 ];
 test('Einstieg über Szenario, Aufgabe, Whiteboard-Rückweg und gespeicherte Sitzung', () => {
 	for (const query of ['szenario=zwei', 'aufgabe=b', 'scenario=zwei']) {
@@ -21,6 +22,12 @@ test('Einstieg über Szenario, Aufgabe, Whiteboard-Rückweg und gespeicherte Sit
 	}
 	assert.equal(selectScenario(scenarios, new URLSearchParams(), 'zwei'), scenarios[1]);
 	assert.equal(selectScenario(scenarios, new URLSearchParams('szenario=x'), null), scenarios[0]);
+});
+test('Freie Kursfrage lässt sich öffnen und nach Navigation fortsetzen', () => {
+	const free = scenarios[2];
+	assert.equal(selectScenario(scenarios, new URLSearchParams('szenario=freie-frage'), null), free);
+	assert.equal(selectScenario(scenarios, new URLSearchParams(), free.id), free);
+	assert.equal(selectScenario(scenarios, new URLSearchParams('aufgabe=b'), free.id), scenarios[1]);
 });
 const request = { requestId: 'first', sessionId: 'demo', expectedRevision: 2 };
 const response = { requestId: 'first', session: { id: 'demo', revision: 3 } };

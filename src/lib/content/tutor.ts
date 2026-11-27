@@ -745,5 +745,16 @@ const learningScenario: LabeledTutorScenario = {
 export const tutorScenarios: readonly LabeledTutorScenario[] = [
 	softmaxScenario,
 	pythonScenario,
-	learningScenario
+	learningScenario,
+	{
+		id: 'freie-frage',
+		shortLabel: 'Freie Frage',
+		course: { courseId: 'ki-selbst-bauen', courseVersion: COURSE_VERSION },
+		title: 'Was möchtest du zum Kurs wissen?',
+		setup: '',
+		delegation: { learner: [], tutorMay: [] },
+		steps: [
+			{ id: 'frage', prompt: { move: 'nachhaken', text: 'Welcher Schritt ist dir noch unklar?' } }
+		]
+	}
 ];

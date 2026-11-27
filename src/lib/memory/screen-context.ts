@@ -47,8 +47,12 @@ export class ScreenContextStore {
 	}
 }
 
-export function isProtectedTutorTurn(task: TaskRef, screen?: ScreenContext): boolean {
+export function isProtectedTutorTurn(
+	task: TaskRef | null | undefined,
+	screen?: ScreenContext
+): boolean {
 	if (screen?.isIndependentProbe) return true;
+	if (!task) return false;
 	const exercise = exerciseForTask(task.taskId);
 	if (exercise?.format !== 'independent-probe' || !sameTask(task, exercise.task)) return false;
 	return !(

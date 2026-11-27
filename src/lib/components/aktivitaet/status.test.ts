@@ -44,7 +44,7 @@ test('only mock mode uses the seed when this goal has no evidence', () => {
 test('practice without evidence can supersede an older success in either mode', () => {
 	const cases = [
 		['falsch', 'nicht_gekonnt'],
-		['teilweise', 'nicht_gekonnt'],
+		['teilweise', 'eingereicht_ungeprueft'],
 		['nicht_pruefbar_oder_alternativweg', 'eingereicht_ungeprueft']
 	] as const;
 	for (const [result, expected] of cases) {
@@ -74,7 +74,7 @@ test('standalone dialog evidence retains its verdict even without recent practic
 		[dialog, 'nicht_gekonnt'],
 		[{ ...dialog, result: 'korrekt' }, 'nicht_gekonnt'],
 		[older, 'eingereicht_ungeprueft'],
-		[{ ...older, result: 'korrekt' }, 'beherrscht']
+		[{ ...older, result: 'korrekt' }, 'einmal_gelungen']
 	] as const) {
 		const observations = conceptEvidence([{ course, recentPractice: [], evidence: [item] }]);
 		assert.equal(resolveConceptStatus(concept, observations, 'http'), expected);
@@ -103,7 +103,7 @@ test('the recorded result takes precedence over an attached transfer marker', ()
 test('transfer requires a later correct attempt on a new task without help', () => {
 	const earlier = { ...older, result: 'korrekt' };
 	const latest = { ...transfer, result: 'korrekt' };
-	assert.equal(resolveConceptStatus(concept, [latest], 'http'), 'beherrscht');
+	assert.equal(resolveConceptStatus(concept, [latest], 'http'), 'einmal_gelungen');
 	assert.equal(resolveConceptStatus(concept, [earlier, latest], 'http'), 'übertragbar');
 	assert.equal(
 		resolveConceptStatus(concept, [earlier, { ...latest, helpLevel: 1 }], 'http'),
@@ -111,7 +111,7 @@ test('transfer requires a later correct attempt on a new task without help', () 
 	);
 	assert.equal(
 		resolveConceptStatus(concept, [{ ...earlier, helpLevel: 2 }, latest], 'http'),
-		'beherrscht'
+		'einmal_gelungen'
 	);
 	assert.equal(
 		resolveConceptStatus(concept, [earlier, { ...latest, kind: 'anwendung' }], 'http'),
@@ -123,7 +123,7 @@ test('transfer requires a later correct attempt on a new task without help', () 
 	);
 	assert.equal(
 		resolveConceptStatus(concept, [latest, { ...earlier, recordedAt: newDate }], 'http'),
-		'beherrscht'
+		'einmal_gelungen'
 	);
 });
 
@@ -136,7 +136,7 @@ test('a correct answer after an explanation is help, not mastery', () => {
 
 test('partial knowledge without help never counts as success with help', () => {
 	const partial = { ...older, helpLevel: 0 as const, result: 'teilweise' };
-	assert.notEqual(resolveConceptStatus(concept, [partial], 'http'), 'mit_hilfe_gelungen');
+	assert.equal(resolveConceptStatus(concept, [partial], 'http'), 'teilweise_gelungen');
 	assert.equal(
 		resolveConceptStatus(concept, [{ ...partial, helpLevel: 1 as const }], 'http'),
 		'mit_hilfe_gelungen'
@@ -149,7 +149,7 @@ test('a later independent transfer on a new task after independent success is tr
 	const later = { ...transfer, helpLevel: 0 as const, result: 'korrekt' };
 	assert.equal(resolveConceptStatus(concept, [helpedFirst], 'http'), 'mit_hilfe_gelungen');
 	assert.equal(resolveConceptStatus(concept, [independentFirst, later], 'http'), 'übertragbar');
-	assert.equal(resolveConceptStatus(concept, [helpedFirst, later], 'http'), 'beherrscht');
+	assert.equal(resolveConceptStatus(concept, [helpedFirst, later], 'http'), 'einmal_gelungen');
 });
 
 const practice = {
@@ -200,12 +200,23 @@ test('practice evidenceLevel supersedes a legacy correct result', () => {
 
 test('a practice entry without a help level cannot establish independent mastery or transfer', () => {
 	const evidence = conceptEvidence([{ course, recentPractice: [practice], evidence: [] }]);
-	assert.equal(resolveConceptStatus(concept, evidence, 'http'), 'mit_hilfe_gelungen');
+	assert.equal(resolveConceptStatus(concept, evidence, 'http'), 'eingereicht_ungeprueft');
 	const later = {
 		...older,
 		recordedAt: '2026-11-28T08:00:00Z',
 		kind: 'transfer' as const,
 		result: 'korrekt'
 	};
-	assert.equal(resolveConceptStatus(concept, [...evidence, later], 'http'), 'beherrscht');
+	assert.equal(resolveConceptStatus(concept, [...evidence, later], 'http'), 'einmal_gelungen');
+});
+
+test('mastery needs two independent successes at distinct moments', () => {
+	const first = { ...older, result: 'korrekt' };
+	const sameMoment = { ...first, recordedAt: oldDate.replace('Z', '+00:00') };
+	assert.equal(resolveConceptStatus(concept, [first], 'http'), 'einmal_gelungen');
+	assert.equal(resolveConceptStatus(concept, [sameMoment, first], 'http'), 'einmal_gelungen');
+	assert.equal(
+		resolveConceptStatus(concept, [{ ...first, recordedAt: newDate }, first], 'http'),
+		'beherrscht'
+	);
 });

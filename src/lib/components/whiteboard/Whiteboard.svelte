@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { screenContext } from '$lib/memory/runtime.svelte';
 	import { untrack, type Snippet } from 'svelte';
-	import type { TaskRef, TutorApiClient, WhiteboardSnapshot } from '$lib/api/types';
+	import { tutorScope } from '$lib/api/types';
+	import type { TutorScope, TutorApiClient, WhiteboardSnapshot } from '$lib/api/types';
 	import { tutorScenarios } from '$lib/content/tutor';
 	import { nextChallenge, type WhiteboardChallenge } from '$lib/content/whiteboard-challenges';
 	import { BoardCanvas, PageHead, BottomBar, IconButton } from '$lib/modules';
@@ -38,12 +39,12 @@
 	interface Props {
 		client: TutorApiClient;
 		/** The tutor task the live question belongs to, unless a challenge brings its own. */
-		task: TaskRef;
+		scope: TutorScope;
 		/** Controls in the top row: the way out. */
 		top?: Snippet;
 	}
 
-	let { client, task, top }: Props = $props();
+	let { client, scope, top }: Props = $props();
 
 	const boardId = crypto.randomUUID();
 	let strokes = $state.raw<Stroke[]>([]);
@@ -204,17 +205,17 @@
 	let busy = $derived(line.phase === 'asking' || line.phase === 'streaming');
 	let controller: AbortController | undefined;
 
-	let askTask = $derived.by(() => {
+	let askScope = $derived.by(() => {
 		const scenario = challenge?.scenarioId
 			? tutorScenarios.find((entry) => entry.id === challenge?.scenarioId)
 			: undefined;
-		return scenario?.task ?? task;
+		return scenario ? tutorScope(scenario) : scope;
 	});
 	$effect(() => {
 		const context = {
 			route: '/whiteboard',
-			taskRef: askTask,
-			courseId: askTask.courseId,
+			taskRef: askScope.task ?? undefined,
+			courseId: (askScope.task ? askScope.task : askScope.course).courseId,
 			topic: challenge?.title ?? 'Whiteboard',
 			sectionId: challenge?.id,
 			sectionTitle: challenge?.text,
@@ -224,8 +225,8 @@
 	});
 	let session = { key: '', id: '', revision: 0 };
 
-	function sessionFor(target: TaskRef, fresh = false) {
-		const key = `${target.courseId}/${target.courseVersion}/${target.taskId}`;
+	function sessionFor(target: TutorScope, fresh = false) {
+		const key = JSON.stringify(target);
 		if (fresh || session.key !== key) session = { key, id: crypto.randomUUID(), revision: 0 };
 		return session;
 	}
@@ -237,12 +238,12 @@
 		const own = new AbortController();
 		controller = own;
 		line = { phase: 'asking' };
-		const target = askTask;
+		const target = askScope;
 		// A conflict means the session moved on elsewhere (or an aborted reply); one fresh retry.
 		for (let attempt = 0; attempt < 2; attempt += 1) {
 			const active = sessionFor(target, attempt > 0);
 			const request = whiteboardTurn({
-				task: target,
+				...target,
 				sessionId: active.id,
 				expectedRevision: active.revision,
 				requestId: crypto.randomUUID(),

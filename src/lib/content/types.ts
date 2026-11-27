@@ -4,6 +4,7 @@ import type {
 	EvidenceKind,
 	ExerciseAttemptRequest,
 	TaskRef,
+	TutorScope,
 	TutorInput,
 	TutorMoveKind,
 	TutorialCheckRequest
@@ -177,16 +178,15 @@ export interface SocraticStep {
 	nextStepId?: string;
 }
 
-export interface TutorScenario {
+export type TutorScenario = TutorScope & {
 	id: string;
-	task: TaskRef;
 	title: string;
 	setup: string;
 	delegation: DelegationBoundary;
 	steps: readonly [SocraticStep, ...SocraticStep[]];
 	parallelExample?: Extract<ScriptedTutorMove, { text: string }>;
 	whiteboardPrompt?: Extract<ScriptedTutorMove, { text: string }>;
-}
+};
 
 type CheckPrompt =
 	| { answerKind: 'text' }
@@ -389,7 +389,13 @@ type PracticeObservation =
 export type ActivityConcept = { conceptId: string; learningGoalId: string; label: string } & (
 	| { status: 'noch_zu_wenig_gesehen'; nextPractice?: string }
 	| {
-			status: 'nicht_gekonnt' | 'mit_hilfe_gelungen' | 'beherrscht' | 'übertragbar';
+			status:
+				| 'einmal_gelungen'
+				| 'teilweise_gelungen'
+				| 'nicht_gekonnt'
+				| 'mit_hilfe_gelungen'
+				| 'beherrscht'
+				| 'übertragbar';
 			attemptId: string;
 			criterion: string;
 			nextPractice?: string;
