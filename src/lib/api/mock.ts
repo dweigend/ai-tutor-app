@@ -28,6 +28,8 @@ import type {
 	CheckResult,
 	CourseRef,
 	EvidenceKind,
+	EvidenceScope,
+	EvidenceLevel,
 	ExerciseAttemptRequest,
 	ExerciseAttemptResponse,
 	StreamEvent,
@@ -59,6 +61,7 @@ export interface MockFixtures {
 		evidence: readonly {
 			learningGoalId: string;
 			kind: EvidenceKind;
+			evidenceScope?: EvidenceScope;
 			helpLevel: 0 | 1 | 2 | 3 | 4;
 		}[];
 	}[];
@@ -348,7 +351,7 @@ function isSingleValue(text: string): boolean {
 
 function checkOutcome<T extends CheckAnswer>(
 	answer: T,
-	rules: readonly { accepted: T; result: 'korrekt' | 'teilweise'; feedback: string }[],
+	rules: readonly { accepted: T; result: 'korrekt' | 'teilweise' | 'falsch'; feedback: string }[],
 	feedback: string,
 	openText = false
 ): { result: CheckResult; feedback: string } {
@@ -796,6 +799,14 @@ export class MockTutorClient implements TutorApiClient {
 			const outcome = checkOutcome(answer, fixture.rules, feedback, true);
 			const recordedAt = this.now().toISOString();
 			const attemptId = `${request.requestId}:attempt`;
+			const levelByResult = {
+				korrekt: 'geprueft_korrekt',
+				teilweise: 'teilwissen',
+				falsch: 'nachgewiesener_fehler',
+				nicht_pruefbar_oder_alternativweg: 'nicht_pruefbar_oder_alternativweg'
+			} as const satisfies Record<CheckResult, EvidenceLevel>;
+			const evidenceLevel = levelByResult[outcome.result];
+			const goal = fixture.evidence.length === 1 ? fixture.evidence[0] : undefined;
 			const evidence = countsAsMastery(outcome.result)
 				? fixture.evidence.map((item, index) => ({
 						...item,
@@ -811,12 +822,23 @@ export class MockTutorClient implements TutorApiClient {
 					kind: 'exercise',
 					id: attemptId,
 					itemId: request.task.taskId,
+					learningGoalId: goal?.learningGoalId,
+					helpLevel: goal?.helpLevel,
+					evidenceScope: goal?.evidenceScope,
+					evidenceLevel,
 					result: outcome.result,
 					recordedAt
 				},
 				evidence
 			);
-			return { kind: 'exercise', requestId: request.requestId, attemptId, ...outcome, evidence };
+			return {
+				kind: 'exercise',
+				requestId: request.requestId,
+				attemptId,
+				...outcome,
+				evidenceLevel,
+				evidence
+			};
 		});
 		if (!('kind' in response) || response.kind !== 'exercise')
 			throw conflict('Die Anfrage-ID gehört zu einer anderen Abgabe.');

@@ -394,6 +394,7 @@ export type ActivityConcept = { conceptId: string; learningGoalId: string; label
 				| 'teilweise_gelungen'
 				| 'nicht_gekonnt'
 				| 'mit_hilfe_gelungen'
+				| 'wiederholt_gelungen'
 				| 'beherrscht'
 				| 'übertragbar';
 			attemptId: string;
@@ -419,7 +420,7 @@ export interface ActivityMirrorSeed {
 // Curated answers for the mock are separate from the material shown before submission.
 export interface CheckRule<Answer> {
 	accepted: Answer;
-	result: 'korrekt' | 'teilweise';
+	result: 'korrekt' | 'teilweise' | 'falsch';
 	feedback: string;
 }
 

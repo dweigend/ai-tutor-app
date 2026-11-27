@@ -91,6 +91,10 @@ function isUtcDate(value: unknown): value is string {
 	);
 }
 
+function isOptionalScope(value: unknown): boolean {
+	return value === undefined || value === 'vollstaendig' || value === 'teilaspekt';
+}
+
 function isEvidence(value: unknown): value is LearningEvidence {
 	return (
 		isRecord(value) &&
@@ -98,6 +102,7 @@ function isEvidence(value: unknown): value is LearningEvidence {
 		(value.attemptId === undefined || isId(value.attemptId)) &&
 		isId(value.taskId) &&
 		isId(value.learningGoalId) &&
+		isOptionalScope(value.evidenceScope) &&
 		isOptionalLevel(value.evidenceLevel) &&
 		(value.result === undefined || isOneOf(value.result, CHECK_RESULTS)) &&
 		isOneOf(value.kind, EVIDENCE_KINDS) &&
@@ -124,6 +129,9 @@ function isPractice(value: unknown): value is ActivityMirrorSnapshot['recentPrac
 		(value.kind === 'tutorial' || value.kind === 'exercise') &&
 		isId(value.id) &&
 		isId(value.itemId) &&
+		isOptionalScope(value.evidenceScope) &&
+		(value.learningGoalId === undefined || isId(value.learningGoalId)) &&
+		(value.helpLevel === undefined || (isRevision(value.helpLevel) && value.helpLevel <= 4)) &&
 		isOneOf(value.result, CHECK_RESULTS) &&
 		isOptionalLevel(value.evidenceLevel) &&
 		isUtcDate(value.recordedAt)

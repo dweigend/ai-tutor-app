@@ -289,3 +289,38 @@ test('live accumulator prediction submits printed lines, while the demo submits 
 		assert.deepEqual(liveAnswer('a-akkumulator-vorhersagen', 'mock', choice, parts), choice);
 	}
 });
+
+test('the exercise retains its tutor session after expiry until the next attempt', async () => {
+	const { ExerciseSessions } = await import('../tutor/sessionStore.js');
+	const sessions = new ExerciseSessions();
+	const task = exercises[0].task;
+	const attempt = sessions.beginAttempt(task);
+	sessions.start(task, 'sess-1');
+	sessions.close(task, 'sess-1');
+	const { HttpTutorClient } = await import('../../api/http.js');
+	const sent: unknown[] = [];
+	const client = new HttpTutorClient('/', async (_url, init) => {
+		const body = JSON.parse(String(init?.body));
+		sent.push(body.sessionId);
+		return Response.json({
+			kind: 'exercise',
+			requestId: body.requestId,
+			attemptId: 'attempt',
+			result: 'korrekt',
+			feedback: 'OK',
+			evidence: []
+		});
+	});
+	const submit = (binding: typeof attempt) =>
+		client.evaluateExercise({
+			kind: 'exercise',
+			requestId: crypto.randomUUID(),
+			task,
+			answer: { kind: 'text', text: '8' },
+			...binding
+		});
+	await submit(attempt);
+	sessions.reset(task);
+	await submit(sessions.beginAttempt(task));
+	assert.deepEqual(sent, ['sess-1', undefined]);
+});

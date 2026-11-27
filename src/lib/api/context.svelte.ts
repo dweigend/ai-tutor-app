@@ -5,6 +5,8 @@ import { normalizeBaseUrl } from './http.js';
 import { ApiError, HttpTutorClient, MockTutorClient, resolveTutorApiConfig } from './index.js';
 import type { ApiConnectionConfig, ApiMode, TutorApiClient, WhiteboardSnapshot } from './types.js';
 
+import { ExerciseSessions } from '../components/tutor/sessionStore';
+
 const TODAY_TARGET = 12;
 
 function localDayKey(value: Date | string): string {
@@ -30,6 +32,7 @@ function createBlockedClient(message: string): TutorApiClient {
 
 interface TutorAppContext {
 	readonly client: TutorApiClient;
+	readonly exerciseSessions: ExerciseSessions;
 	readonly config: ApiConnectionConfig;
 	readonly configError: string | null;
 	readonly switching: boolean;
@@ -52,6 +55,7 @@ export { getTutorAppContext };
 
 export function setTutorAppContext(): TutorAppContext {
 	const demoClient = new MockTutorClient(buildEditorialMockFixtures());
+	let exerciseSessions = $state.raw(new ExerciseSessions());
 	let clientReady = false;
 	let consentFor = $state.raw<TutorApiClient | null>(null);
 	let connection = $state.raw<{ client: TutorApiClient; config: ApiConnectionConfig }>({
@@ -81,6 +85,7 @@ export function setTutorAppContext(): TutorAppContext {
 			if (config.mode === 'mock') return;
 			if (connection.config.mode === 'http' && config.baseUrl === connection.config.baseUrl) return;
 		}
+		exerciseSessions = new ExerciseSessions();
 		consentFor = null;
 		switch (config.mode) {
 			case 'mock':
@@ -118,6 +123,9 @@ export function setTutorAppContext(): TutorAppContext {
 	}
 
 	return setContext({
+		get exerciseSessions() {
+			return exerciseSessions;
+		},
 		get client() {
 			return connection.client;
 		},

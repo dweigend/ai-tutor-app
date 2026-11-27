@@ -30,7 +30,7 @@ type MirrorInput = Omit<ActivityMirrorSnapshot, 'recentPractice'> & {
 	recentPractice: readonly Practice[];
 };
 export type LiveObservation = Pick<LearningEvidence, 'learningGoalId' | 'taskId' | 'recordedAt'> &
-	Partial<Pick<LearningEvidence, 'kind' | 'helpLevel'>> & { result: string };
+	Partial<Pick<LearningEvidence, 'kind' | 'helpLevel' | 'evidenceScope'>> & { result: string };
 type ConceptStatus = ActivityConcept['status'] | 'eingereicht_ungeprueft';
 
 function isEvidenceLevel(value: unknown): value is EvidenceLevel {
@@ -94,9 +94,14 @@ export function conceptEvidence(snapshots: readonly MirrorInput[]): LiveObservat
 						result: verdict === undefined || verdict === 'korrekt' ? result : verdict
 					};
 				});
-			return goalsForPractice(course, practice).map((learningGoalId) => ({
+			const goals = practice.learningGoalId
+				? [practice.learningGoalId]
+				: goalsForPractice(course, practice);
+			return goals.map((learningGoalId) => ({
 				learningGoalId,
 				taskId: practice.itemId,
+				helpLevel: practice.helpLevel,
+				evidenceScope: practice.evidenceScope,
 				recordedAt: practice.recordedAt,
 				result
 			}));
@@ -135,15 +140,20 @@ export function resolveConceptStatus(
 			// A correct answer after a hint, or without a known help level, is never mastery.
 			if (help === 'unknown') return 'eingereicht_ungeprueft';
 			if (help === 'some') return 'mit_hilfe_gelungen';
-			const priorIndependentSuccess = earlier.some(
+			const priorSuccesses = earlier.filter(
 				(item) =>
 					item.result === 'korrekt' &&
 					helpOf(item) === 'none' &&
 					Date.parse(latest.recordedAt) - Date.parse(item.recordedAt) >= DELAYED_MASTERY_GAP_MS
 			);
-			if (!priorIndependentSuccess) return 'einmal_gelungen';
+			if (!priorSuccesses.length) return 'einmal_gelungen';
+			if (latest.evidenceScope === 'teilaspekt') return 'wiederholt_gelungen';
 			const newTask = earlier.every((item) => item.taskId !== latest.taskId);
-			return latest.kind === 'transfer' && newTask ? 'übertragbar' : 'beherrscht';
+			if (latest.kind === 'transfer' && newTask) return 'übertragbar';
+			return latest.evidenceScope === 'vollstaendig' ||
+				priorSuccesses.some((item) => item.taskId !== latest.taskId)
+				? 'beherrscht'
+				: 'wiederholt_gelungen';
 		}
 		default:
 			return 'eingereicht_ungeprueft';

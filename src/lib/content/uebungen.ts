@@ -7,8 +7,7 @@ import type { ExerciseCheckRule, ExerciseItem, StageFacts } from './types.js';
 // 1 = short entry, 2 = careful check, 3 = deep dive or independent probe.
 export type EditorialExercise = ExerciseItem & { level: 1 | 2 | 3; subtitle: string };
 
-// Mock rules only know `korrekt` and `teilweise`. Diagnostic feedback for every option,
-// including the wrong ones, lives in `optionFeedback` for the UI to show after submission.
+// Choice exercises may explain individual distractors after submission.
 export type ExerciseCheckFixture = MockFixtures['exercises'][number] & {
 	optionFeedback?: Readonly<Record<string, string>>;
 };
@@ -567,11 +566,17 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 				['8'],
 				'd steht an beiden Eingängen von L – beide Beiträge von je 4 addieren sich zu 8.'
 			),
-			...textRule(['4'], 'Ein Pfad stimmt schon. Über wie viele Eingänge geht d in L ein?', true)
+			{
+				accepted: { kind: 'text', text: '4' },
+				result: 'falsch',
+				feedback: 'Ein Pfad stimmt schon. Über wie viele Eingänge geht d in L ein?'
+			}
 		],
 		feedback:
 			'Noch nicht. Schau, an wie vielen Eingängen von L das d steht – und was += mit jedem Beitrag macht.',
-		evidence: [evidence('lz-rechengraph-gradienten', 'anwendung')]
+		evidence: [
+			{ ...evidence('lz-rechengraph-gradienten', 'anwendung'), evidenceScope: 'teilaspekt' }
+		]
 	},
 	{
 		task: aiBackwardTask,
@@ -665,7 +670,9 @@ export const exerciseChecks: readonly ExerciseCheckFixture[] = [
 		],
 		feedback:
 			'Geh vom Endpreis rückwärts: Wie stark wirkt E · (1 + s) auf P, und wie stark wirkt s darauf?',
-		evidence: [evidence('lz-rechengraph-gradienten', 'transfer')]
+		evidence: [
+			{ ...evidence('lz-rechengraph-gradienten', 'transfer'), evidenceScope: 'teilaspekt' }
+		]
 	},
 	{
 		task: graphSketchTask,

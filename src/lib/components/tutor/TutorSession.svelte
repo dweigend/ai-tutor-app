@@ -275,6 +275,7 @@
 
 	function newSession(note?: string) {
 		controller?.abort();
+		if (scenario.task) tutorApp.exerciseSessions.close(scenario.task, sessionId);
 		clearSession(scenario.id);
 		artifact = null;
 		sessionId = crypto.randomUUID();
@@ -420,6 +421,7 @@
 					};
 		entries.push(confirmed, reply);
 		artifact = response.artifact ?? null;
+		if (request.task) tutorApp.exerciseSessions.start(request.task, response.session.id);
 		revision = response.session.revision;
 		sessionState = response.session.state;
 		cursor = next.cursor;

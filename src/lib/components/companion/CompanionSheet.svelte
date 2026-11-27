@@ -43,13 +43,18 @@
 		dialog.addEventListener('keydown', escape);
 		return () => dialog.removeEventListener('keydown', escape);
 	});
-	onDestroy(() => controller?.abort());
+	let closeSession: (() => void) | undefined;
+	onDestroy(() => {
+		controller?.abort();
+		closeSession?.();
+	});
 	function changePanel() {
 		panel = panel === 'chat' ? 'memory' : 'chat';
 		learningMemory.refresh();
 		snapshot = screenContext.snapshot();
 	}
 	function clear() {
+		closeSession?.();
 		controller?.abort();
 		controller = undefined;
 		learningMemory.clearAll();
@@ -90,8 +95,14 @@
 			const turn = new AbortController();
 			controller = turn;
 			try {
+				const sessions = app.exerciseSessions;
 				const reply = await app.client.turn(request, turn.signal);
 				if (turn.signal.aborted) return;
+				const task = request.task;
+				if (task) {
+					sessions.start(task, reply.session.id);
+					closeSession = () => sessions.close(task, reply.session.id);
+				}
 				revision = reply.session.revision;
 				messages.push({
 					role: 'Tutor',

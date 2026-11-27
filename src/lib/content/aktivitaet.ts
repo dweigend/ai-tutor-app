@@ -18,6 +18,7 @@ export const activityStatusCopy: Readonly<
 	einmal_gelungen: { label: 'Einmal selbstständig' },
 	teilweise_gelungen: { label: 'Teilweise gelungen' },
 	mit_hilfe_gelungen: { label: 'Mit Hilfe' },
+	wiederholt_gelungen: { label: 'Wiederholt gelungen' },
 	beherrscht: { label: 'Sitzt' },
 	übertragbar: { label: 'Sitzt sicher' }
 };

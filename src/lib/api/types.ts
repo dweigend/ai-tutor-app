@@ -187,6 +187,7 @@ export interface TutorialCheckRequest {
 }
 
 export interface ExerciseAttemptRequest {
+	sessionId?: string;
 	kind: 'exercise';
 	requestId: string;
 	task: TaskRef;
@@ -206,7 +207,10 @@ export interface TutorialCheckResponse {
 	feedback: string;
 }
 
+export type EvidenceScope = 'vollstaendig' | 'teilaspekt';
+
 export interface LearningEvidence {
+	evidenceScope?: EvidenceScope;
 	evidenceLevel?: EvidenceLevel;
 	result?: CheckResult;
 	id: string;
@@ -260,6 +264,9 @@ export interface ActivityMirrorSnapshot {
 		kind: 'tutorial' | 'exercise';
 		id: string;
 		itemId: string;
+		learningGoalId?: string;
+		helpLevel?: LearningEvidence['helpLevel'];
+		evidenceScope?: EvidenceScope;
 		result: CheckResult;
 		evidenceLevel?: EvidenceLevel;
 		recordedAt: string;

@@ -228,6 +228,13 @@
 		return attempt.requestId;
 	}
 
+	let attemptSession: { sessionId?: string } = {};
+	$effect(() => {
+		// Switching backends also starts a fresh binding.
+		const sessions = tutorApp.exerciseSessions;
+		attemptSession = sessions.beginAttempt(task);
+		return () => sessions.reset(task);
+	});
 	let controller: AbortController | undefined;
 	$effect(() => () => controller?.abort());
 
@@ -243,7 +250,11 @@
 		}
 		controller?.abort();
 		controller = new AbortController();
-		const payload = { answer, confidence: draft.confidence ?? undefined };
+		const payload = {
+			sessionId: attemptSession.sessionId,
+			answer,
+			confidence: draft.confidence ?? undefined
+		};
 		const requestId = attemptRequestId(JSON.stringify(payload));
 		pending = true;
 		try {

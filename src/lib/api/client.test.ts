@@ -45,10 +45,14 @@ const {
 const { defaultFixtures, demoCourse, demoTask, demoTutorialId, demoCheckId } =
 	await import('./defaultFixtures.js');
 const { buildEditorialMockFixtures, exercises } = await import('../content/index.js');
+const { conceptEvidence, resolveConceptStatus } =
+	await import('../components/aktivitaet/mirror.js');
+const { visibleInMode } = await import('../components/uebungen/stage-model.js');
 hooks.deregister();
 
 const options = { confirmationDelayMs: 25, tokenDelayMs: 0 };
 const upstream = new MockTutorClient(defaultFixtures, options);
+const editorial = new MockTutorClient(buildEditorialMockFixtures(), options);
 const server = createServer((request, response) => {
 	handleRequest(request, response).catch((error: unknown) => {
 		if (response.destroyed) return;
@@ -124,7 +128,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 		>(request);
 		const result =
 			body.kind === 'exercise'
-				? await upstream.evaluateExercise(body)
+				? await (body.task.taskId.startsWith('a-bp-') ? editorial : upstream).evaluateExercise(body)
 				: await upstream.checkTutorial(body);
 		return sendJson(response, result);
 	}
@@ -1366,4 +1370,86 @@ test('HTTP prüft Aufgabe und Kurs der bestätigten Sitzung', async () => {
 		(await withSession({ task: undefined, course: demoCourse }).turn(free)).session.task,
 		null
 	);
+});
+
+test('HTTP contract for numeric substeps in both live exercises', async () => {
+	const client = new HttpTutorClient(origin);
+	for (const [taskId, text, level] of [
+		['a-bp-addieren-erklaeren', '8', 'geprueft_korrekt'],
+		['a-bp-addieren-erklaeren', '4', 'nachgewiesener_fehler'],
+		['a-bp-preiskette-transfer', '0,476', 'geprueft_korrekt'],
+		['a-bp-preiskette-transfer', '0.476', 'geprueft_korrekt'],
+		['a-bp-preiskette-transfer', '0,48', 'teilwissen'],
+		['a-bp-preiskette-transfer', '0,9', 'nachgewiesener_fehler']
+	]) {
+		const exercise = exercises.find((e) => e.task.taskId === taskId);
+		assert.ok(exercise);
+		assert.ok(visibleInMode(taskId, 'http'));
+		const reply = await client.evaluateExercise({
+			kind: 'exercise',
+			requestId: 'numeric-' + text,
+			task: exercise.task,
+			answer: { kind: 'text', text }
+		});
+		assert.equal(reply.evidenceLevel, level, text);
+		if (level === 'geprueft_korrekt') assert.equal(reply.evidence[0]?.evidenceScope, 'teilaspekt');
+	}
+});
+
+test('HTTP exercise request includes only a defined sessionId', async () => {
+	for (const sessionId of [undefined, 'sess-1']) {
+		const client = new HttpTutorClient('/', async (_url, init) => {
+			const body = JSON.parse(String(init?.body));
+			assert.equal(Object.hasOwn(body, 'sessionId'), sessionId !== undefined);
+			assert.equal(body.sessionId, sessionId);
+			return Response.json(await upstream.evaluateExercise(body));
+		});
+		await client.evaluateExercise({
+			kind: 'exercise',
+			requestId: 'bound-' + sessionId,
+			sessionId,
+			task: demoTask,
+			answer: { kind: 'choice', optionIds: ['2x'] }
+		});
+	}
+});
+
+test('HTTP mirror preserves a multi-goal exercise diagnostic without linked evidence', async () => {
+	const taskId = 'a-bp-addieren-erklaeren';
+	for (const [result, helpLevel, expected] of [
+		['falsch', 0, 'nicht_gekonnt'],
+		['teilweise', 1, 'mit_hilfe_gelungen']
+	] as const) {
+		const practice = {
+			id: 'new',
+			kind: 'exercise',
+			itemId: taskId,
+			learningGoalId: 'lz-a',
+			helpLevel,
+			evidenceScope: 'teilaspekt',
+			result,
+			recordedAt: '2026-11-28T08:00:00Z'
+		};
+		const old = {
+			id: 'old',
+			taskId,
+			learningGoalId: 'lz-a',
+			kind: 'anwendung',
+			helpLevel: 0,
+			result: 'korrekt',
+			recordedAt: '2026-11-26T08:00:00Z'
+		};
+		const client = new HttpTutorClient('/', async () =>
+			Response.json({ course: demoCourse, recentPractice: [practice], evidence: [old] })
+		);
+		const mirror = await client.getActivityMirror(demoCourse);
+		assert.deepEqual(mirror.recentPractice, [practice]);
+		const observations = conceptEvidence([mirror]);
+		const concept = { learningGoalId: 'lz-a', status: 'einmal_gelungen' } as const;
+		assert.equal(resolveConceptStatus(concept, observations, 'http'), expected);
+		assert.equal(
+			resolveConceptStatus({ ...concept, learningGoalId: 'lz-b' }, observations, 'http'),
+			'noch_zu_wenig_gesehen'
+		);
+	}
 });

@@ -119,7 +119,7 @@ test('transfer requires a later correct attempt on a new task without help', () 
 	);
 	assert.equal(
 		resolveConceptStatus(concept, [{ ...earlier, taskId: transferTask }, latest], 'http'),
-		'beherrscht'
+		'wiederholt_gelungen'
 	);
 	assert.equal(
 		resolveConceptStatus(concept, [latest, { ...earlier, recordedAt: newDate }], 'http'),
@@ -216,7 +216,11 @@ test('mastery needs two independent successes at distinct moments', () => {
 	assert.equal(resolveConceptStatus(concept, [first], 'http'), 'einmal_gelungen');
 	assert.equal(resolveConceptStatus(concept, [sameMoment, first], 'http'), 'einmal_gelungen');
 	assert.equal(
-		resolveConceptStatus(concept, [{ ...first, recordedAt: newDate }, first], 'http'),
+		resolveConceptStatus(
+			concept,
+			[{ ...first, recordedAt: newDate, evidenceScope: 'vollstaendig' }, first],
+			'http'
+		),
 		'beherrscht'
 	);
 });
@@ -226,7 +230,7 @@ test('same-task repetitions five seconds apart stay at one success until delayed
 	for (const [recordedAt, expected] of [
 		['2026-11-26T08:00:05Z', 'einmal_gelungen'],
 		['2026-11-27T07:59:59.999Z', 'einmal_gelungen'],
-		[newDate, 'beherrscht']
+		[newDate, 'wiederholt_gelungen']
 	]) {
 		assert.equal(
 			resolveConceptStatus(concept, [first, { ...first, recordedAt }], 'http'),
@@ -264,5 +268,63 @@ test('multi-goal diagnostics apply only to the evidenced goal, with or without p
 	]);
 	for (const goal of [concept, sibling]) {
 		assert.equal(resolveConceptStatus(goal, observations, 'http'), 'noch_zu_wenig_gesehen');
+	}
+});
+
+test('delayed narrow recall stays below mastery even on a transfer task', () => {
+	const taskId = 'a-bp-mehrfachnutzung-vorhersagen';
+	const first = { ...older, taskId, result: 'korrekt' };
+	const latest = { ...first, recordedAt: '2026-11-28T08:00:01Z' };
+	for (const evidenceScope of ['teilaspekt', undefined] as const)
+		assert.equal(
+			resolveConceptStatus(
+				concept,
+				[
+					{ ...first, evidenceScope },
+					{ ...latest, evidenceScope }
+				],
+				'http'
+			),
+			'wiederholt_gelungen'
+		);
+	assert.equal(
+		resolveConceptStatus(
+			concept,
+			[first, { ...transfer, result: 'korrekt', evidenceScope: 'teilaspekt' }],
+			'http'
+		),
+		'wiederholt_gelungen'
+	);
+});
+
+test('direct practice diagnostics supersede only the named goal', () => {
+	for (const [result, helpLevel, expected] of [
+		['falsch', 0, 'nicht_gekonnt'],
+		['teilweise', 1, 'mit_hilfe_gelungen']
+	] as const) {
+		const evidence = conceptEvidence([
+			{
+				course,
+				evidence: [{ ...older, learningGoalId: 'lz-a', result: 'korrekt' }],
+				recentPractice: [
+					{
+						...practice,
+						itemId: older.taskId,
+						learningGoalId: 'lz-a',
+						result,
+						helpLevel,
+						evidenceScope: 'teilaspekt'
+					}
+				]
+			}
+		]);
+		assert.equal(
+			resolveConceptStatus({ ...concept, learningGoalId: 'lz-a' }, evidence, 'http'),
+			expected
+		);
+		assert.equal(
+			resolveConceptStatus({ ...concept, learningGoalId: 'lz-b' }, evidence, 'http'),
+			'noch_zu_wenig_gesehen'
+		);
 	}
 });

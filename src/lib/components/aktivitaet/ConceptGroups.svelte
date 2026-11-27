@@ -29,6 +29,7 @@
 		einmal_gelungen: 'mid',
 		teilweise_gelungen: 'mid',
 		mit_hilfe_gelungen: 'mid',
+		wiederholt_gelungen: 'mid',
 		beherrscht: 'good',
 		übertragbar: 'good'
 	} as const;

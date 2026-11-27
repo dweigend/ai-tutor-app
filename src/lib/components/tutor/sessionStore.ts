@@ -1,5 +1,6 @@
 import type {
 	ApiMode,
+	TaskRef,
 	TutorTurnRequest,
 	TutorApiClient,
 	TutorSession as SessionInfo
@@ -86,4 +87,36 @@ export function requiresConsentRestart(
 	shareWithApi: boolean
 ) {
 	return mode === 'http' && !!request.agentContext !== shareWithApi;
+}
+
+/** A confirmed tutor turn can precede the exercise or happen inside its companion sheet. */
+export class ExerciseSessions {
+	private active = new Map<string, string>();
+	private attempts = new Map<string, { sessionId?: string }>();
+
+	private key(task: TaskRef) {
+		return JSON.stringify([task.courseId, task.courseVersion, task.taskId]);
+	}
+
+	start(task: TaskRef, sessionId: string) {
+		const key = this.key(task);
+		this.active.set(key, sessionId);
+		const attempt = this.attempts.get(key);
+		if (attempt) attempt.sessionId ??= sessionId;
+	}
+	close(task: TaskRef, sessionId: string) {
+		const key = this.key(task);
+		if (this.active.get(key) === sessionId) this.active.delete(key);
+	}
+	beginAttempt(task: TaskRef) {
+		const key = this.key(task);
+		const attempt = { sessionId: this.active.get(key) };
+		this.attempts.set(key, attempt);
+		return attempt;
+	}
+	reset(task: TaskRef) {
+		const key = this.key(task);
+		this.attempts.delete(key);
+		this.active.delete(key);
+	}
 }
